@@ -14,6 +14,10 @@ import {
   submitAssessment,
 } from "@/services/assessment"
 
+import {
+  useLanguage,
+} from "@/context/LanguageContext"
+
 import type {
   AssessmentAnswers,
   AssessmentData,
@@ -32,12 +36,6 @@ type Step =
 type AssessmentCode =
   | "PC"
   | "SPK"
-
-/*
-|--------------------------------------------------------------------------
-| Resolve standalone assessment from URL
-|--------------------------------------------------------------------------
-*/
 
 function getAssessmentCodeFromPath():
   AssessmentCode | null {
@@ -76,11 +74,32 @@ function getInitialReferenceCode() {
 }
 
 function App() {
+  
+  const {
+    tr,
+  } = useLanguage()
+
   const assessmentCode =
     getAssessmentCodeFromPath()
 
   const initialReferenceCode =
     getInitialReferenceCode()
+
+  useEffect(() => {
+    if (assessmentCode === "SPK") {
+      document.title = "Kizzu Kids | SPK"
+      return
+    }
+
+    if (assessmentCode === "PC") {
+      document.title =
+        "Kizzu Kids | Parental Checklist"
+      return
+    }
+
+    document.title =
+      "Kizzu Kids | Child Development"
+  }, [assessmentCode])
 
   const [step, setStep] =
     useState<Step>(
@@ -110,7 +129,7 @@ function App() {
       null,
     )
 
-  const [answers, setAnswers] =
+  const [, setAnswers] =
     useState<AssessmentAnswers>({})
 
   const [
@@ -129,12 +148,6 @@ function App() {
 
   const [submitting, setSubmitting] =
     useState(false)
-
-  /*
-  |--------------------------------------------------------------------------
-  | Load standalone assessment
-  |--------------------------------------------------------------------------
-  */
 
   useEffect(() => {
     if (!assessmentCode) {
@@ -182,12 +195,6 @@ function App() {
     initialReferenceCode,
   ])
 
-  /*
-  |--------------------------------------------------------------------------
-  | Start
-  |--------------------------------------------------------------------------
-  */
-
   function handleStart() {
     setDetails(null)
     setAssessmentData(null)
@@ -196,12 +203,6 @@ function App() {
 
     setStep("details")
   }
-
-  /*
-  |--------------------------------------------------------------------------
-  | Details
-  |--------------------------------------------------------------------------
-  */
 
   async function handleDetailsContinue(
     parentChildDetails:
@@ -230,12 +231,6 @@ function App() {
 
     setStep("assessment")
   }
-
-  /*
-  |--------------------------------------------------------------------------
-  | Submit
-  |--------------------------------------------------------------------------
-  */
 
   async function handleAssessmentComplete(
     completedAnswers:
@@ -287,19 +282,16 @@ function App() {
       setSubmitError(
         error instanceof Error
           ? error.message
-          : "Submission gagal disimpan.",
+          : tr(
+            "Submission gagal disimpan.",
+            "The submission could not be saved.",
+          ),
       )
 
     } finally {
       setSubmitting(false)
     }
   }
-
-  /*
-  |--------------------------------------------------------------------------
-  | Start same assessment again
-  |--------------------------------------------------------------------------
-  */
 
   function startAgain() {
     setDetails(null)
@@ -319,27 +311,18 @@ function App() {
     setStep("intro")
   }
 
-  /*
-  |--------------------------------------------------------------------------
-  | Loading
-  |--------------------------------------------------------------------------
-  */
-
   if (step === "loading") {
     return (
       <main className="flex min-h-screen items-center justify-center bg-white">
         <p className="text-sm text-slate-400">
-          Memuatkan...
+          {tr(
+            "Memuatkan...",
+            "Loading...",
+          )}
         </p>
       </main>
     )
   }
-
-  /*
-  |--------------------------------------------------------------------------
-  | Invalid standalone link
-  |--------------------------------------------------------------------------
-  */
 
   if (
     step === "invalid" ||
@@ -353,24 +336,22 @@ function App() {
           </p>
 
           <h1 className="mt-3 text-2xl font-bold text-slate-950">
-            Pautan tidak tersedia
+            {tr(
+              "Pautan tidak tersedia",
+              "Link unavailable",
+            )}
           </h1>
 
           <p className="mt-2 text-sm leading-6 text-slate-500">
-            Sila gunakan pautan
-            saringan yang diberikan
-            oleh Kizzu.
+            {tr(
+              "Sila gunakan pautan saringan yang diberikan oleh Kizzu.",
+              "Please use the screening link provided by Kizzu.",
+            )}
           </p>
         </div>
       </main>
     )
   }
-
-  /*
-  |--------------------------------------------------------------------------
-  | Result
-  |--------------------------------------------------------------------------
-  */
 
   if (
     step === "result" &&
@@ -387,12 +368,6 @@ function App() {
       />
     )
   }
-
-  /*
-  |--------------------------------------------------------------------------
-  | Assessment
-  |--------------------------------------------------------------------------
-  */
 
   if (
     step === "assessment" &&
@@ -422,12 +397,6 @@ function App() {
     )
   }
 
-  /*
-  |--------------------------------------------------------------------------
-  | Details
-  |--------------------------------------------------------------------------
-  */
-
   if (step === "details") {
     return (
       <DetailsPage
@@ -443,12 +412,6 @@ function App() {
       />
     )
   }
-
-  /*
-  |--------------------------------------------------------------------------
-  | Intro
-  |--------------------------------------------------------------------------
-  */
 
   return (
     <AssessmentIntroPage

@@ -9,6 +9,9 @@ import type {
     ParentChildDetails,
 } from "@/types/assessment"
 
+const API_BASE =
+    `${import.meta.env.BASE_URL}api`
+
 /*
 |--------------------------------------------------------------------------
 | Assessment Types
@@ -19,8 +22,8 @@ export async function getAssessmentTypes(): Promise<
     AssessmentType[]
 > {
     const response = await fetch(
-        "/api/assessment-types.php",
-    )
+    `${API_BASE}/assessment-types.php`,
+)
 
     if (!response.ok) {
         throw new Error(
@@ -56,8 +59,8 @@ export async function getAssessment(
     })
 
     const response = await fetch(
-        `/api/assessment.php?${params.toString()}`,
-    )
+    `${API_BASE}/assessment.php?${params.toString()}`,
+)
 
     const result = await response.json()
 
@@ -106,7 +109,7 @@ export async function submitAssessment(
     }))
 
     const response = await fetch(
-        "/api/submit-assessment.php",
+        `${API_BASE}/submit-assessment.php`,
         {
             method: "POST",
 
@@ -178,7 +181,7 @@ export async function getResult(
     })
 
     const response = await fetch(
-        `/api/result.php?${params.toString()}`,
+        `${API_BASE}/result.php?${params.toString()}`,
     )
 
     const result =

@@ -124,7 +124,6 @@ export type AssessmentResult = {
         domains: ResultDomain[]
 
         items_to_watch: ResultWatchItem[]
-
     }
 
     recommendations: RecommendationActivity[]
@@ -145,10 +144,18 @@ export type AssessmentResultResponse = {
 export type RecommendationActivity = {
     id: number
     category: string
+
     title: string
+    title_en: string | null
+
     instructions: string
+    instructions_en: string | null
+
     supports: string | null
+    supports_en: string | null
+
     safety_note: string | null
+    safety_note_en: string | null
 }
 
 export type ResultCta = {

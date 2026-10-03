@@ -4,8 +4,10 @@ import react from "@vitejs/plugin-react"
 import tailwindcss from "@tailwindcss/vite"
 
 export default defineConfig(({ mode }) => ({
-  base: mode === "production" ? "/saringan/" : "/",
-
+  base: mode === "production"
+    ? "/semak-perkembangan/"
+    : "/",
+  
   plugins: [
     react(),
     tailwindcss(),
@@ -22,7 +24,8 @@ export default defineConfig(({ mode }) => ({
 
     proxy: {
       "/api": {
-        target: "http://localhost/kizzu-public-screening",
+        //target: "http://localhost/kizzu-public-screening",
+        target: "http://127.0.0.1:8080",
         changeOrigin: true,
       },
     },

@@ -33,32 +33,32 @@ function mapDomainToRecommendationCategory(
 
         // PC
         'SOCIAL_EMOTIONAL' =>
-        'SOCIAL',
+            'SOCIAL',
 
         'LANGUAGE_COMMUNICATION' =>
-        'LANGUAGE',
+            'LANGUAGE',
 
         'COGNITIVE_THINKING' =>
-        'COGNITIVE',
+            'COGNITIVE',
 
         'PHYSICAL_DEVELOPMENT' =>
-        'PHYSICAL',
+            'PHYSICAL',
 
         // SPK
         'GROSS_MOTOR' =>
-        'GROSS_MOTOR',
+            'GROSS_MOTOR',
 
         'FINE_MOTOR' =>
-        'FINE_MOTOR',
+            'FINE_MOTOR',
 
         'SPEECH_LANGUAGE' =>
-        'LANGUAGE',
+            'LANGUAGE',
 
         'PERSONAL_SOCIAL' =>
-        'SOCIAL',
+            'SOCIAL',
 
         'COGNITIVE' =>
-        'COGNITIVE',
+            'COGNITIVE',
 
         default => null,
     };
@@ -79,11 +79,11 @@ function mapFocusToBroadRecommendationCategory(
     return match ($focus) {
         'LANGUAGE_RECEPTIVE',
         'LANGUAGE_EXPRESSIVE' =>
-        'LANGUAGE',
+            'LANGUAGE',
 
         'SOCIAL_PLAY',
         'SOCIAL_EMOTIONAL' =>
-        'SOCIAL',
+            'SOCIAL',
 
         /*
         |--------------------------------------------------------------------------
@@ -94,31 +94,31 @@ function mapFocusToBroadRecommendationCategory(
         |--------------------------------------------------------------------------
         */
         'SELF_CARE' =>
-        null,
+            null,
 
         'GROSS_BALANCE',
         'GROSS_LOCOMOTOR',
         'GROSS_BALL' =>
-        $domainCode ===
+            $domainCode ===
             'PHYSICAL_DEVELOPMENT'
-            ? 'PHYSICAL'
-            : 'GROSS_MOTOR',
+                ? 'PHYSICAL'
+                : 'GROSS_MOTOR',
 
         'FINE_GRASP',
         'VISUAL_MOTOR' =>
-        $domainCode ===
+            $domainCode ===
             'PHYSICAL_DEVELOPMENT'
-            ? 'PHYSICAL'
-            : 'FINE_MOTOR',
+                ? 'PHYSICAL'
+                : 'FINE_MOTOR',
 
         'COGNITIVE_PROBLEM_SOLVING',
         'COGNITIVE_EARLY_LEARNING' =>
-        'COGNITIVE',
+            'COGNITIVE',
 
         default =>
-        mapDomainToRecommendationCategory(
-            $domainCode
-        ),
+            mapDomainToRecommendationCategory(
+                $domainCode
+            ),
     };
 }
 
@@ -551,9 +551,13 @@ function fetchRecommendationByCategory(
             id,
             category,
             title_ms,
+            title_en,
             instructions_ms,
+            instructions_en,
             supports_ms,
-            safety_note_ms
+            supports_en,
+            safety_note_ms,
+            safety_note_en
 
         FROM recommendation_activities
 
@@ -588,22 +592,34 @@ function fetchRecommendationByCategory(
 
         return [
             'id' =>
-            $id,
+                $id,
 
             'category' =>
-            $row['category'],
+                $row['category'],
 
             'title' =>
-            $row['title_ms'],
+                $row['title_ms'],
+
+            'title_en' =>
+                $row['title_en'] ?: null,
 
             'instructions' =>
-            $row['instructions_ms'],
+                $row['instructions_ms'],
+
+            'instructions_en' =>
+                $row['instructions_en'] ?: null,
 
             'supports' =>
-            $row['supports_ms'],
+                $row['supports_ms'],
+
+            'supports_en' =>
+                $row['supports_en'] ?: null,
 
             'safety_note' =>
-            $row['safety_note_ms'],
+                $row['safety_note_ms'],
+
+            'safety_note_en' =>
+                $row['safety_note_en'] ?: null,
         ];
     }
 
@@ -654,6 +670,10 @@ function getRecommendationActivities(
     */
 
     if (count($itemsToWatch) === 0) {
+        // When everything is achieved/observed, keep the result concise:
+        // return up to 2 GENERAL activities as enrichment, not intervention.
+        $limit = min($limit, 2);
+
         while (
             count($recommendations)
             < $limit
@@ -717,9 +737,13 @@ function getRecommendationActivities(
             );
 
         if ($broadCategory) {
-            $broadCounts[$broadCategory] =
+            $broadCounts[
+                $broadCategory
+            ] =
                 (
-                    $broadCounts[$broadCategory]
+                    $broadCounts[
+                        $broadCategory
+                    ]
                     ?? 0
                 ) + 1;
         }
@@ -754,8 +778,8 @@ function getRecommendationActivities(
 
         $maxForFocus =
             $singleFocus
-            ? 2
-            : 1;
+                ? 2
+                : 1;
 
         for (
             $i = 0;

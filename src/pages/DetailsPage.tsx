@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 import ScreeningShell from "@/components/screening/ScreeningShell"
+import { useLanguage } from "@/context/LanguageContext"
 
 import {
     KLANG_VALLEY_LOCATIONS,
@@ -61,6 +62,11 @@ export default function DetailsPage({
     onBack,
     onContinue,
 }: DetailsPageProps) {
+    const {
+        language,
+        tr,
+    } = useLanguage()
+
     const [form, setForm] =
         useState<ParentChildDetails>({
             childName: "",
@@ -175,46 +181,46 @@ export default function DetailsPage({
 
         if (!values.childName.trim()) {
             errors.childName =
-                "Nama anak diperlukan."
+                tr("Nama anak diperlukan.", "Child\'s name is required.")
         }
 
         if (!values.childDob) {
             errors.childDob =
-                "Tarikh lahir diperlukan."
+                tr("Tarikh lahir diperlukan.", "Date of birth is required.")
         }
 
         if (!values.parentName.trim()) {
             errors.parentName =
-                "Nama ibu bapa / penjaga diperlukan."
+                tr("Nama ibu bapa / penjaga diperlukan.", "Parent / guardian name is required.")
         }
 
         if (!values.phone.trim()) {
             errors.phone =
-                "No. telefon diperlukan."
+                tr("No. telefon diperlukan.", "Phone number is required.")
         } else if (
             !isValidMalaysiaPhone(
                 values.phone,
             )
         ) {
             errors.phone =
-                "Masukkan no. telefon Malaysia yang sah."
+                tr("Masukkan no. telefon Malaysia yang sah.", "Enter a valid Malaysian phone number.")
         }
 
         if (!values.email.trim()) {
             errors.email =
-                "Email diperlukan."
+                tr("Email diperlukan.", "Email is required.")
         } else if (
             !isValidEmail(
                 values.email,
             )
         ) {
             errors.email =
-                "Format email tidak sah."
+                tr("Format email tidak sah.", "Invalid email format.")
         }
 
         if (!values.location) {
             errors.location =
-                "Sila pilih lokasi."
+                tr("Sila pilih lokasi.", "Please select a location.")
         }
 
         return errors
@@ -269,7 +275,7 @@ export default function DetailsPage({
             0
         ) {
             setGeneralError(
-                "Sila semak maklumat yang ditandakan.",
+                tr("Sila semak maklumat yang ditandakan.", "Please check the highlighted information."),
             )
 
             return
@@ -281,7 +287,7 @@ export default function DetailsPage({
                     ...current,
 
                     childDob:
-                        "Tarikh lahir tidak sah.",
+                        tr("Tarikh lahir tidak sah.", "Invalid date of birth."),
                 }),
             )
 
@@ -290,7 +296,7 @@ export default function DetailsPage({
 
         if (!consent) {
             setGeneralError(
-                "Sila beri persetujuan sebelum meneruskan.",
+                tr("Sila beri persetujuan sebelum meneruskan.", "Please provide consent before continuing."),
             )
 
             return
@@ -308,7 +314,7 @@ export default function DetailsPage({
             setGeneralError(
                 error instanceof Error
                     ? error.message
-                    : "Tidak dapat memuatkan assessment.",
+                    : tr("Tidak dapat memuatkan assessment.", "Unable to load the assessment."),
             )
 
         } finally {
@@ -319,7 +325,7 @@ export default function DetailsPage({
     return (
         <ScreeningShell
             step="02"
-            label="Maklumat"
+            label={tr("Maklumat", "Details")}
             maxWidth="medium"
         >
             <div className="py-10 md:py-14">
@@ -330,24 +336,25 @@ export default function DetailsPage({
                 >
                     <ArrowLeft className="size-4" />
 
-                    Kembali
+                    {tr("Kembali", "Back")}
                 </button>
 
                 <div className="mb-12">
                     <p className="text-xs font-bold uppercase tracking-[0.18em] text-sky-600">
                         {assessment.code === "SPK"
-                            ? "Saringan Perkembangan"
+                            ? tr("Saringan Perkembangan", "Developmental Screening")
                             : "Parental Checklist"}
                     </p>
 
                     <h1 className="mt-3 text-4xl font-black tracking-[-0.04em] md:text-5xl">
-                        Maklumat anak
+                        {tr("Maklumat anak", "Child details")}
                     </h1>
 
                     <p className="mt-3 max-w-xl leading-7 text-slate-500">
-                        Umur anak akan ditentukan
-                        secara automatik daripada
-                        tarikh lahir.
+                        {tr(
+                            "Umur anak akan ditentukan secara automatik daripada tarikh lahir.",
+                            "Your child's age will be calculated automatically from the date of birth.",
+                        )}
                     </p>
                 </div>
 
@@ -356,7 +363,7 @@ export default function DetailsPage({
                 <section>
                     <div className="mb-6 flex items-baseline justify-between border-b border-slate-200 pb-3">
                         <h2 className="font-bold">
-                            Anak
+                            {tr("Anak", "Child")}
                         </h2>
 
                         <span className="text-xs text-slate-400">
@@ -367,7 +374,7 @@ export default function DetailsPage({
                     <div className="grid gap-6 md:grid-cols-2">
                         <div className="space-y-2">
                             <Label htmlFor="childName">
-                                Nama anak
+                                {tr("Nama anak", "Child\'s name")}
                             </Label>
 
                             <Input
@@ -385,7 +392,7 @@ export default function DetailsPage({
                                         "childName",
                                     )
                                 }
-                                placeholder="Nama anak"
+                                placeholder={tr("Nama anak", "Child\'s name")}
                                 className={
                                     fieldErrors.childName
                                         ? "h-12 rounded-xl border-red-400"
@@ -404,7 +411,7 @@ export default function DetailsPage({
 
                         <div className="space-y-2">
                             <Label htmlFor="childDob">
-                                Tarikh lahir
+                                {tr("Tarikh lahir", "Date of birth")}
                             </Label>
 
                             <Input
@@ -434,11 +441,11 @@ export default function DetailsPage({
 
                             {ageMonths !== null && (
                                 <p className="pt-1 text-sm font-semibold text-sky-600">
-                                    {formatAge(
-                                        ageMonths,
-                                    )}
+                                    {language === "ms"
+                                        ? formatAge(ageMonths)
+                                        : `${Math.floor(ageMonths / 12)} ${Math.floor(ageMonths / 12) === 1 ? "year" : "years"}${ageMonths % 12 ? ` ${ageMonths % 12} ${ageMonths % 12 === 1 ? "month" : "months"}` : ""}`}
                                     {" · "}
-                                    {ageMonths} bulan
+                                    {ageMonths} {tr("bulan", "months")}
                                 </p>
                             )}
                         </div>
@@ -450,7 +457,7 @@ export default function DetailsPage({
                 <section className="mt-12">
                     <div className="mb-6 flex items-baseline justify-between border-b border-slate-200 pb-3">
                         <h2 className="font-bold">
-                            Ibu bapa / penjaga
+                            {tr("Ibu bapa / penjaga", "Parent / guardian")}
                         </h2>
 
                         <span className="text-xs text-slate-400">
@@ -461,7 +468,7 @@ export default function DetailsPage({
                     <div className="grid gap-6 md:grid-cols-2">
                         <div className="space-y-2 md:col-span-2">
                             <Label htmlFor="parentName">
-                                Nama
+                                {tr("Nama", "Name")}
                             </Label>
 
                             <Input
@@ -479,7 +486,7 @@ export default function DetailsPage({
                                         "parentName",
                                     )
                                 }
-                                placeholder="Nama ibu bapa / penjaga"
+                                placeholder={tr("Nama ibu bapa / penjaga", "Parent / guardian name")}
                                 className={
                                     fieldErrors.parentName
                                         ? "h-12 rounded-xl border-red-400"
@@ -498,7 +505,7 @@ export default function DetailsPage({
 
                         <div className="space-y-2">
                             <Label htmlFor="phone">
-                                No. telefon
+                                {tr("No. telefon", "Phone number")}
                             </Label>
 
                             <Input
@@ -572,7 +579,7 @@ export default function DetailsPage({
 
                         <div className="space-y-2 md:col-span-2">
                             <Label htmlFor="location">
-                                Kawasan
+                                {tr("Kawasan", "Area")}
                             </Label>
 
                             <select
@@ -616,10 +623,10 @@ export default function DetailsPage({
                                     }`}
                             >
                                 <option value="">
-                                    Pilih kawasan
+                                    {tr("Pilih kawasan", "Select area")}
                                 </option>
 
-                                <optgroup label="KL & Lembah Klang">
+                                <optgroup label={tr("KL & Lembah Klang", "KL & Klang Valley")}>
                                     {KLANG_VALLEY_LOCATIONS.map(
                                         (location) => (
                                             <option
@@ -633,13 +640,13 @@ export default function DetailsPage({
                                 </optgroup>
 
                                 <option value="__OTHER__">
-                                    Luar KL / Lembah Klang
+                                    {tr("Luar KL / Lembah Klang", "Outside KL / Klang Valley")}
                                 </option>
                             </select>
 
                             {outsideKlangValley && (
                                 <select
-                                    aria-label="Pilih negeri"
+                                    aria-label={tr("Pilih negeri", "Select state")}
                                     value={form.location}
                                     onChange={(event) =>
                                         updateField(
@@ -653,7 +660,7 @@ export default function DetailsPage({
                                         }`}
                                 >
                                     <option value="">
-                                        Pilih negeri
+                                        {tr("Pilih negeri", "Select state")}
                                     </option>
 
                                     {OTHER_STATES.map(
@@ -697,10 +704,10 @@ export default function DetailsPage({
                         htmlFor="consent"
                         className="max-w-xl cursor-pointer text-sm font-normal leading-6 text-slate-500"
                     >
-                        Saya bersetuju maklumat
-                        ini digunakan untuk
-                        menghasilkan keputusan
-                        assessment ini.
+                        {tr(
+                            "Saya bersetuju maklumat ini digunakan untuk menghasilkan keputusan assessment ini.",
+                            "I agree that this information may be used to generate the result for this assessment.",
+                        )}
                     </Label>
                 </div>
 
@@ -720,8 +727,8 @@ export default function DetailsPage({
                         className="h-12 rounded-full px-7"
                     >
                         {loading
-                            ? "Memuatkan..."
-                            : "Teruskan"}
+                            ? tr("Memuatkan...", "Loading...")
+                            : tr("Teruskan", "Continue")}
 
                         {!loading && (
                             <ArrowRight className="size-4" />
