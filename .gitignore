@@ -1,3 +1,7 @@
 # Local / production secrets
+.env.local
+.DS_Store
+**/.DS_Store
+apply-pc-result-refinement.*
 api/config/database.local.php
 node_modules
