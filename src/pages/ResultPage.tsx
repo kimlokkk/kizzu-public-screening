@@ -287,6 +287,31 @@ export default function ResultPage({
             )
             : ""
 
+    const pcAgeLabel = (() => {
+        const years = Math.floor(
+            data.age.months / 12,
+        )
+
+        const months =
+            data.age.months % 12
+
+        if (language === "ms") {
+            return months > 0
+                ? `${years} tahun ${months} bulan`
+                : `${years} tahun`
+        }
+
+        const yearText =
+            `${years} ${years === 1 ? "year" : "years"}`
+
+        if (months === 0) {
+            return yearText
+        }
+
+        return `${yearText} ${months} ${months === 1 ? "month" : "months"
+            }`
+    })()
+
     function domainName(
         domain:
             AssessmentResult["result"]["domains"][number],
@@ -433,13 +458,21 @@ export default function ResultPage({
 
     return (
         <ScreeningShell>
-            <div className="result-wrap">
+            <div
+                className="result-wrap"
+                data-assessment={data.assessment.code}
+            >
                 <section className="clean-intro result-heading">
                     <h1>
-                        {tr(
-                            "Ringkasan",
-                            "Summary",
-                        )}
+                        {isPc
+                            ? tr(
+                                "Ringkasan saringan",
+                                "Screening summary",
+                            )
+                            : tr(
+                                "Ringkasan",
+                                "Summary",
+                            )}
                         <br />
                         <span className="blue-text">
                             {data.child.name}
@@ -447,7 +480,9 @@ export default function ResultPage({
                     </h1>
 
                     <p>
-                        {data.age.group}
+                        {isPc
+                            ? pcAgeLabel
+                            : data.age.group}
                         {dateLabel
                             ? ` · ${dateLabel}`
                             : ""}
@@ -571,16 +606,15 @@ export default function ResultPage({
                                     <div className="track">
                                         <span
                                             style={{
-                                                width: `${
-                                                    domain.total >
+                                                width: `${domain.total >
                                                     0
-                                                        ? (
-                                                            domain.positive /
-                                                            domain.total
-                                                        ) *
-                                                        100
-                                                        : 0
-                                                }%`,
+                                                    ? (
+                                                        domain.positive /
+                                                        domain.total
+                                                    ) *
+                                                    100
+                                                    : 0
+                                                    }%`,
                                             }}
                                         />
                                     </div>
@@ -603,7 +637,7 @@ export default function ResultPage({
                 </section>
 
                 {result.items_to_watch.length >
-                0 ? (
+                    0 ? (
                     <details className="result-details watch-card">
                         <summary>
                             <span className="watch-symbol">
@@ -664,13 +698,15 @@ export default function ResultPage({
                                                 item.domain_code
                                             }
                                         >
-                                            <span className="watch-item-icon">
-                                                <DomainIcon
-                                                    code={
-                                                        item.domain_code
-                                                    }
-                                                />
-                                            </span>
+                                            {!isPc && (
+                                                <span className="watch-item-icon">
+                                                    <DomainIcon
+                                                        code={
+                                                            item.domain_code
+                                                        }
+                                                    />
+                                                </span>
+                                            )}
 
                                             <div className="watch-item-copy">
                                                 <small>
@@ -686,7 +722,7 @@ export default function ResultPage({
 
                                                 <p>
                                                     {language ===
-                                                    "en"
+                                                        "en"
                                                         ? item.question_en ||
                                                         item.question_ms
                                                         : item.question_ms}
@@ -714,119 +750,119 @@ export default function ResultPage({
 
                 {data.recommendations.length >
                     0 && (
-                    <section className="activities">
-                        <div className="activities-heading">
-                            <h2>
-                                {result.total_negative >
-                                0
-                                    ? tr(
-                                        "Cuba bersama anak",
-                                        "Try together",
-                                    )
-                                    : tr(
-                                        "Aktiviti pengayaan",
-                                        "Enrichment activities",
-                                    )}
-                            </h2>
-
-                            <p>
-                                {tr(
-                                    "Pilih satu aktiviti untuk bermula.",
-                                    "Choose one activity to start.",
-                                )}
-                            </p>
-                        </div>
-
-                        <div className="activity-stack">
-                            {data.recommendations.map(
-                                (
-                                    activity,
-                                ) => {
-                                    const activityDomain =
-                                        recommendationDomainCode(
-                                            activity.category,
+                        <section className="activities">
+                            <div className="activities-heading">
+                                <h2>
+                                    {result.total_negative >
+                                        0
+                                        ? tr(
+                                            "Cuba bersama anak",
+                                            "Try together",
                                         )
+                                        : tr(
+                                            "Aktiviti pengayaan",
+                                            "Enrichment activities",
+                                        )}
+                                </h2>
 
-                                    return (
-                                    <details
-                                        className="activity-card"
-                                        data-domain={
-                                            activityDomain
-                                        }
-                                        key={
-                                            activity.id
-                                        }
-                                    >
-                                        <summary>
-                                            <span className="activity-icon">
-                                                <ActivityIcon
-                                                    category={
-                                                        activity.category
-                                                    }
-                                                />
-                                            </span>
+                                <p>
+                                    {tr(
+                                        "Pilih satu aktiviti untuk bermula.",
+                                        "Choose one activity to start.",
+                                    )}
+                                </p>
+                            </div>
 
-                                            <span className="activity-title">
-                                                <strong>
-                                                    {activityTitle(
-                                                        activity,
-                                                    )}
-                                                </strong>
+                            <div className="activity-stack">
+                                {data.recommendations.map(
+                                    (
+                                        activity,
+                                    ) => {
+                                        const activityDomain =
+                                            recommendationDomainCode(
+                                                activity.category,
+                                            )
 
-                                                {activitySupports(
-                                                    activity,
-                                                ) && (
-                                                    <small>
+                                        return (
+                                            <details
+                                                className="activity-card"
+                                                data-domain={
+                                                    activityDomain
+                                                }
+                                                key={
+                                                    activity.id
+                                                }
+                                            >
+                                                <summary>
+                                                    <span className="activity-icon">
+                                                        <ActivityIcon
+                                                            category={
+                                                                activity.category
+                                                            }
+                                                        />
+                                                    </span>
+
+                                                    <span className="activity-title">
+                                                        <strong>
+                                                            {activityTitle(
+                                                                activity,
+                                                            )}
+                                                        </strong>
+
                                                         {activitySupports(
                                                             activity,
+                                                        ) && (
+                                                                <small>
+                                                                    {activitySupports(
+                                                                        activity,
+                                                                    )}
+                                                                </small>
+                                                            )}
+                                                    </span>
+
+                                                    <span
+                                                        className="activity-toggle"
+                                                        aria-hidden="true"
+                                                    >
+                                                        <ChevronDown />
+                                                    </span>
+                                                </summary>
+
+                                                <div className="activity-body">
+                                                    <p className="instruction-label">
+                                                        {tr(
+                                                            "Cara cuba",
+                                                            "How to try",
                                                         )}
-                                                    </small>
-                                                )}
-                                            </span>
+                                                    </p>
 
-                                            <span
-                                                className="activity-toggle"
-                                                aria-hidden="true"
-                                            >
-                                                <ChevronDown />
-                                            </span>
-                                        </summary>
+                                                    <p>
+                                                        {activityInstructions(
+                                                            activity,
+                                                        )}
+                                                    </p>
 
-                                        <div className="activity-body">
-                                            <p className="instruction-label">
-                                                {tr(
-                                                    "Cara cuba",
-                                                    "How to try",
-                                                )}
-                                            </p>
-
-                                            <p>
-                                                {activityInstructions(
-                                                    activity,
-                                                )}
-                                            </p>
-
-                                            {activitySafety(
-                                                activity,
-                                            ) && (
-                                                <p className="activity-safety">
-                                                    {tr(
-                                                        "Nota keselamatan:",
-                                                        "Safety note:",
-                                                    )}{" "}
                                                     {activitySafety(
                                                         activity,
-                                                    )}
-                                                </p>
-                                            )}
-                                        </div>
-                                    </details>
-                                    )
-                                },
-                            )}
-                        </div>
-                    </section>
-                )}
+                                                    ) && (
+                                                            <p className="activity-safety">
+                                                                {tr(
+                                                                    "Nota keselamatan:",
+                                                                    "Safety note:",
+                                                                )}{" "}
+                                                                {activitySafety(
+                                                                    activity,
+                                                                )}
+                                                            </p>
+                                                        )}
+                                                </div>
+                                            </details>
+                                        )
+                                    },
+                                )}
+                            </div>
+                        </section>
+                    )}
 
                 <section className="next-step support-card">
                     <span className="support-icon area-icon">
@@ -844,16 +880,21 @@ export default function ResultPage({
                         </h2>
 
                         <p>
-                            {guidance.level ===
-                            "refer"
+                            {isPc
                                 ? tr(
-                                    "Kongsikan ringkasan ini dengan pasukan Kizzu untuk memahami pilihan penilaian dan sokongan yang sesuai.",
-                                    "Share this summary with the Kizzu team to understand suitable assessment and support options.",
+                                    "Kongsikan ringkasan ini dengan pasukan Kizzu",
+                                    "Share this summary with the Kizzu team.",
                                 )
-                                : tr(
-                                    "Kongsikan ringkasan ini jika anda mahu panduan aktiviti atau perkembangan anak.",
-                                    "Share this summary if you would like guidance on activities or your child's development.",
-                                )}
+                                : guidance.level ===
+                                    "refer"
+                                    ? tr(
+                                        "Kongsikan ringkasan ini dengan pasukan Kizzu untuk memahami pilihan penilaian dan sokongan yang sesuai.",
+                                        "Share this summary with the Kizzu team to understand suitable assessment and support options.",
+                                    )
+                                    : tr(
+                                        "Kongsikan ringkasan ini jika anda mahu panduan aktiviti atau perkembangan anak.",
+                                        "Share this summary if you would like guidance on activities or your child's development.",
+                                    )}
                         </p>
                     </div>
 
@@ -889,8 +930,8 @@ export default function ResultPage({
                 <p className="disclaimer">
                     {isPc
                         ? tr(
-                            "Checklist ini berdasarkan pemerhatian ibu bapa dan bukan alat diagnosis atau pengganti saringan perkembangan yang tervalidasi. Jika anak kehilangan kemahiran yang pernah dikuasai, atau anda bimbang tentang perkembangannya, dapatkan nasihat profesional tanpa menunggu checklist seterusnya.",
-                            "This checklist is based on parent observations and is not a diagnostic tool or a substitute for validated developmental screening. If your child loses a skill they previously had, or you are concerned about their development, seek professional advice without waiting for the next checklist.",
+                            "Checklist ini berdasarkan pemerhatian ibu bapa dan bukan diagnosis. Jika anda bimbang tentang perkembangan anak anda, dapatkan nasihat profesional walaupun semua jawapan \"Boleh\".",
+                            "This screening is based on parent observations and is not a diagnosis. Seek professional assessment if you are concerned, even if every answer is \"Able\".",
                         )
                         : tr(
                             "Keputusan SPK ialah panduan awal berdasarkan jawapan yang diberikan dan bukan diagnosis.",
@@ -932,8 +973,8 @@ export default function ResultPage({
                 >
                     {isPc
                         ? tr(
-                            "Checklist baharu",
-                            "New checklist",
+                            "Saringan baharu",
+                            "New screening",
                         )
                         : tr(
                             "Saringan baharu",
