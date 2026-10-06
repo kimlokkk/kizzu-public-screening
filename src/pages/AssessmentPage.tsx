@@ -1,18 +1,22 @@
-import { useEffect, useMemo, useState } from "react"
-
 import {
-    AlertCircle,
-    ArrowLeft,
-    ArrowRight,
-    Check,
-    CheckCircle2,
-    Pencil,
-} from "lucide-react"
+    useEffect,
+    useState,
+} from "react"
 
+import DomainIcon from "@/components/screening/DomainIcon"
+import ScreeningFlow from "@/components/screening/ScreeningFlow"
 import ScreeningShell from "@/components/screening/ScreeningShell"
 import { useLanguage } from "@/context/LanguageContext"
-import { Button } from "@/components/ui/button"
-import { Progress } from "@/components/ui/progress"
+import { MALAYSIA_LOCATIONS } from "@/data/locations"
+
+import {
+    formatMalaysiaPhoneForDisplay,
+    isValidEmail,
+    isValidMalaysiaPhone,
+    normalizeEmail,
+    normalizeMalaysiaPhone,
+    toTitleCase,
+} from "@/utils/form"
 
 import type {
     AssessmentAnswers,
@@ -23,16 +27,21 @@ import type {
 type AssessmentPageProps = {
     assessmentData: AssessmentData
     details: ParentChildDetails
-
     submitting: boolean
     submitError: string | null
-
     onBackToDetails: () => void
-
     onComplete: (
         answers: AssessmentAnswers,
+        details: ParentChildDetails,
     ) => Promise<void>
 }
+
+type ParentErrors = Partial<
+    Record<
+        "parentName" | "phone" | "email" | "location",
+        string
+    >
+>
 
 export default function AssessmentPage({
     assessmentData,
@@ -56,79 +65,61 @@ export default function AssessmentPage({
     const [error, setError] =
         useState<string | null>(null)
 
+    const [unansweredIds, setUnansweredIds] =
+        useState<number[]>([])
+
     const [reviewMode, setReviewMode] =
         useState(false)
 
+    const [parentForm, setParentForm] =
+        useState<ParentChildDetails>(details)
+
+    const [consent, setConsent] =
+        useState(false)
+
+    const [parentErrors, setParentErrors] =
+        useState<ParentErrors>({})
+
     const domains = assessmentData.domains
-    const currentDomain = domains[domainIndex]
+    const currentDomain =
+        domains[domainIndex]
+
+    const isSpk =
+        assessmentData.assessment.code === "SPK"
 
     const positiveLabel =
-        assessmentData.assessment.code === "SPK"
+        isSpk
             ? tr("Tercapai", "Achieved")
             : tr("Boleh", "Able")
 
     const negativeLabel =
-        assessmentData.assessment.code === "SPK"
-            ? tr("Tidak Tercapai", "Not Achieved")
+        isSpk
+            ? tr(
+                "Tidak Tercapai",
+                "Not Achieved",
+            )
             : tr("Belum", "Not Yet")
-
-    const ageGroupLabel = (() => {
-        if (language === "ms") {
-            return assessmentData.age.group
-        }
-
-        const months =
-            assessmentData.age.months
-
-        if (
-            assessmentData.assessment.code ===
-            "SPK"
-        ) {
-            if (months <= 17) return "1 Year"
-            if (months <= 23) return "1.5 Years"
-            if (months <= 35) return "2 Years"
-            if (months <= 47) return "3 Years"
-            if (months <= 59) return "4 Years"
-            if (months <= 71) return "5 Years"
-            return "6 Years"
-        }
-
-        if (months <= 17) return "1–1.5 Years"
-        if (months <= 23) return "1.5–2 Years"
-        if (months <= 35) return "2–3 Years"
-        if (months <= 47) return "3–4 Years"
-        if (months <= 59) return "4–5 Years"
-        return "5–6 Years"
-    })()
 
     const totalAnswered =
         Object.keys(answers).length
 
-    const overallProgress =
+    const progress =
         assessmentData.total_questions > 0
-            ? Math.round(
-                (totalAnswered /
-                    assessmentData.total_questions) *
-                100,
-            )
+            ? (
+                totalAnswered /
+                assessmentData.total_questions
+            ) * 100
             : 0
 
-    const currentDomainAnswered = useMemo(() => {
-        if (!currentDomain) {
-            return 0
-        }
-
-        return currentDomain.questions.filter(
-            (question) =>
-                answers[question.id] !== undefined,
-        ).length
-    }, [answers, currentDomain])
-
-    const currentDomainComplete =
-        currentDomain
-            ? currentDomainAnswered ===
-            currentDomain.questions.length
-            : false
+    const globalOffset =
+        domains
+            .slice(0, domainIndex)
+            .reduce(
+                (total, domain) =>
+                    total +
+                    domain.questions.length,
+                0,
+            )
 
     useEffect(() => {
         window.scrollTo({
@@ -136,6 +127,37 @@ export default function AssessmentPage({
             behavior: "smooth",
         })
     }, [domainIndex, reviewMode])
+
+    function domainName(
+        domain:
+            AssessmentData["domains"][number],
+    ) {
+        if (
+            language === "en" &&
+            domain.name_en
+        ) {
+            return domain.name_en
+        }
+
+        return domain.name_ms
+    }
+
+    function questionText(
+        question:
+            AssessmentData["domains"][number]["questions"][number],
+    ) {
+        if (language === "en") {
+            return (
+                question.question_en ||
+                tr(
+                    "Terjemahan belum tersedia.",
+                    "Translation not available.",
+                )
+            )
+        }
+
+        return question.question_ms
+    }
 
     function answerQuestion(
         questionId: number,
@@ -146,6 +168,12 @@ export default function AssessmentPage({
             [questionId]: value,
         }))
 
+        setUnansweredIds((current) =>
+            current.filter(
+                (id) => id !== questionId,
+            ),
+        )
+
         setError(null)
     }
 
@@ -154,26 +182,37 @@ export default function AssessmentPage({
             return
         }
 
-        if (!currentDomainComplete) {
-            const unanswered =
-                currentDomain.questions.length -
-                currentDomainAnswered
+        const missing =
+            currentDomain.questions
+                .filter(
+                    (question) =>
+                        answers[question.id] ===
+                        undefined,
+                )
+                .map(
+                    (question) =>
+                        question.id,
+                )
+
+        if (missing.length > 0) {
+            setUnansweredIds(missing)
 
             setError(
-                language === "ms"
-                    ? `Masih ada ${unanswered} soalan yang belum dijawab.`
-                    : `${unanswered} question${unanswered === 1 ? "" : "s"} still unanswered.`,
+                tr(
+                    "Sila jawab semua soalan dalam bahagian ini sebelum meneruskan.",
+                    "Please answer every question in this section before continuing.",
+                ),
             )
-
             return
         }
 
+        setUnansweredIds([])
         setError(null)
 
-        const isLastDomain =
-            domainIndex === domains.length - 1
-
-        if (isLastDomain) {
+        if (
+            domainIndex ===
+            domains.length - 1
+        ) {
             setReviewMode(true)
             return
         }
@@ -185,6 +224,7 @@ export default function AssessmentPage({
 
     function previousDomain() {
         setError(null)
+        setUnansweredIds([])
 
         if (domainIndex === 0) {
             onBackToDetails()
@@ -200,345 +240,784 @@ export default function AssessmentPage({
         setDomainIndex(index)
         setReviewMode(false)
         setError(null)
+        setUnansweredIds([])
+    }
+
+    function updateParent(
+        field:
+            | "parentName"
+            | "phone"
+            | "email"
+            | "location",
+        value: string,
+    ) {
+        setParentForm((current) => ({
+            ...current,
+            [field]: value,
+        }))
+
+        setParentErrors((current) => ({
+            ...current,
+            [field]: undefined,
+        }))
+    }
+
+    function validateParent() {
+        const errors: ParentErrors = {}
+
+        const normalized: ParentChildDetails = {
+            ...parentForm,
+            parentName:
+                toTitleCase(
+                    parentForm.parentName,
+                ),
+            phone:
+                normalizeMalaysiaPhone(
+                    parentForm.phone,
+                ),
+            email:
+                normalizeEmail(
+                    parentForm.email,
+                ),
+        }
+
+        if (!normalized.parentName.trim()) {
+            errors.parentName =
+                tr(
+                    "Nama ibu bapa / penjaga diperlukan.",
+                    "Parent / guardian name is required.",
+                )
+        }
+
+        if (!normalized.phone.trim()) {
+            errors.phone =
+                tr(
+                    "No. telefon diperlukan.",
+                    "Phone number is required.",
+                )
+        } else if (
+            !isValidMalaysiaPhone(
+                normalized.phone,
+            )
+        ) {
+            errors.phone =
+                tr(
+                    "Masukkan no. telefon Malaysia yang sah.",
+                    "Enter a valid Malaysian phone number.",
+                )
+        }
+
+        if (!normalized.email.trim()) {
+            errors.email =
+                tr(
+                    "Email diperlukan.",
+                    "Email is required.",
+                )
+        } else if (
+            !isValidEmail(
+                normalized.email,
+            )
+        ) {
+            errors.email =
+                tr(
+                    "Format email tidak sah.",
+                    "Invalid email format.",
+                )
+        }
+
+        if (!normalized.location) {
+            errors.location =
+                tr(
+                    "Sila pilih lokasi.",
+                    "Please select a location.",
+                )
+        }
+
+        setParentErrors(errors)
+
+        setParentForm({
+            ...normalized,
+            phone:
+                normalized.phone
+                    ? `+${normalized.phone}`
+                    : "",
+        })
+
+        return {
+            errors,
+            normalized,
+        }
+    }
+
+    function submitReview(
+        event: React.FormEvent<HTMLFormElement>,
+    ) {
+        event.preventDefault()
+
+        const {
+            errors,
+            normalized,
+        } = validateParent()
+
+        if (
+            Object.keys(errors).length >
+            0
+        ) {
+            return
+        }
+
+        if (!consent) {
+            setError(
+                tr(
+                    "Sila beri persetujuan sebelum menyimpan ringkasan.",
+                    "Please provide consent before saving the summary.",
+                ),
+            )
+            return
+        }
+
+        setError(null)
+
+        void onComplete(
+            answers,
+            normalized,
+        )
     }
 
     if (reviewMode) {
+        const yesCount =
+            Object.values(answers)
+                .filter(Boolean)
+                .length
+
         return (
-            <ScreeningShell
-                step="04"
-                label={tr("Semak", "Review")}
-                maxWidth="medium"
-            >
-                <div className="py-10 md:py-14">
-                    <button
-                        type="button"
-                        disabled={submitting}
-                        onClick={() => {
-                            setReviewMode(false)
-                            setDomainIndex(domains.length - 1)
-                        }}
-                        className="mb-10 inline-flex items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-slate-950 disabled:opacity-50"
-                    >
-                        <ArrowLeft className="size-4" />
-                        {tr("Kembali", "Back")}
-                    </button>
+            <ScreeningShell>
+                <div className="flow-wrap">
+                    <ScreeningFlow
+                        current={3}
+                        assessmentCode={
+                            assessmentData
+                                .assessment
+                                .code
+                        }
+                    />
 
-                    <header className="max-w-2xl">
-                        <div className="flex items-center gap-3">
-                            <span className="h-px w-9 bg-sky-500" />
-                            <p className="text-xs font-bold uppercase tracking-[0.18em] text-sky-600">
-                                {tr("Semakan akhir", "Final review")}
-                            </p>
-                        </div>
-
-                        <h1 className="mt-4 text-4xl font-black tracking-[-0.045em] text-slate-950 md:text-5xl">
-                            {tr("Semak jawapan", "Review answers")}
+                    <div className="page-heading">
+                        <h1>
+                            {tr(
+                                "Semak & simpan",
+                                "Review & save",
+                            )}
                         </h1>
 
-                        <p className="mt-4 max-w-xl leading-7 text-slate-500">
-                            {tr(
-                                "Pastikan jawapan berdasarkan pemerhatian terhadap",
-                                "Make sure your answers are based on your observations of",
-                            )}{" "}
-                            <span className="font-semibold text-slate-800">
-                                {details.childName}
-                            </span>
-                            .
+                        <p>
+                            {details.childName}
+                            {" · "}
+                            {assessmentData.age.group}
                         </p>
-                    </header>
+                    </div>
 
-                    <div className="mt-10 flex items-center gap-4 border-y border-slate-100 py-5">
-                        <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-sky-50 text-sky-600">
-                            <CheckCircle2 className="size-5" />
-                        </div>
+                    <details className="review-details">
+                        <summary>
+                            <span>
+                                {yesCount}{" "}
+                                {positiveLabel}
+                                {" · "}
+                                {
+                                    assessmentData
+                                        .total_questions -
+                                    yesCount
+                                }{" "}
+                                {negativeLabel}
+                            </span>
+
+                            <span className="muted">
+                                {tr(
+                                    "Semak jawapan",
+                                    "Review answers",
+                                )}
+                            </span>
+                        </summary>
 
                         <div>
-                            <p className="font-semibold text-slate-950">
-                                {tr("Semua soalan telah dijawab", "All questions have been answered")}
-                            </p>
-                            <p className="mt-1 text-sm text-slate-500">
-                                {language === "ms"
-                                    ? `${assessmentData.total_questions} daripada ${assessmentData.total_questions} soalan lengkap.`
-                                    : `${assessmentData.total_questions} of ${assessmentData.total_questions} questions completed.`}
-                            </p>
-                        </div>
-                    </div>
+                            {domains.map(
+                                (
+                                    domain,
+                                    index,
+                                ) => {
+                                    const positive =
+                                        domain.questions.filter(
+                                            (
+                                                question,
+                                            ) =>
+                                                answers[
+                                                question
+                                                    .id
+                                                ] ===
+                                                true,
+                                        ).length
 
-                    <section className="mt-12">
-                        <div className="mb-3 flex items-baseline justify-between">
-                            <h2 className="text-sm font-bold uppercase tracking-[0.14em] text-slate-400">
-                                {tr("Ringkasan domain", "Domain summary")}
-                            </h2>
-                            <span className="text-xs text-slate-400">
-                                {domains.length} {tr("domain", "domains")}
-                            </span>
-                        </div>
-
-                        <div className="border-t border-slate-200">
-                            {domains.map((domain, index) => {
-                                const yesCount =
-                                    domain.questions.filter(
-                                        (question) =>
-                                            answers[question.id] === true,
-                                    ).length
-
-                                const noCount =
-                                    domain.questions.filter(
-                                        (question) =>
-                                            answers[question.id] === false,
-                                    ).length
-
-                                return (
-                                    <div
-                                        key={domain.id}
-                                        className="grid gap-4 border-b border-slate-100 py-5 sm:grid-cols-[1fr_auto] sm:items-center"
-                                    >
-                                        <div className="flex items-start gap-4">
-                                            <span className="pt-0.5 font-mono text-xs text-slate-300">
-                                                {String(index + 1).padStart(2, "0")}
+                                    return (
+                                        <div
+                                            key={
+                                                domain.id
+                                            }
+                                            className="review-domain"
+                                        >
+                                            <span>
+                                                {
+                                                    domainName(
+                                                        domain,
+                                                    )
+                                                }
+                                                <small>
+                                                    {
+                                                        positive
+                                                    }{" "}
+                                                    /{" "}
+                                                    {
+                                                        domain
+                                                            .questions
+                                                            .length
+                                                    }{" "}
+                                                    {
+                                                        positiveLabel
+                                                    }
+                                                </small>
                                             </span>
 
-                                            <div>
-                                                <p className="font-semibold text-slate-950">
-                                                    {language === "en" && domain.name_en ? domain.name_en : domain.name_ms}
-                                                </p>
-
-                                                <p className="mt-1 text-sm text-slate-500">
-                                                    {positiveLabel} {yesCount}
-                                                    <span className="mx-2 text-slate-300">·</span>
-                                                    {negativeLabel} {noCount}
-                                                </p>
-                                            </div>
+                                            <button
+                                                type="button"
+                                                className="inline-link"
+                                                disabled={
+                                                    submitting
+                                                }
+                                                onClick={() =>
+                                                    editDomain(
+                                                        index,
+                                                    )
+                                                }
+                                            >
+                                                {tr(
+                                                    "Ubah",
+                                                    "Edit",
+                                                )}
+                                            </button>
                                         </div>
-
-                                        <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="sm"
-                                            disabled={submitting}
-                                            onClick={() => editDomain(index)}
-                                            className="w-fit justify-self-start rounded-full px-3 text-slate-500 sm:justify-self-end"
-                                        >
-                                            <Pencil className="size-3.5" />
-                                            {tr("Edit", "Edit")}
-                                        </Button>
-                                    </div>
-                                )
-                            })}
+                                    )
+                                },
+                            )}
                         </div>
-                    </section>
+                    </details>
 
-                    {submitError && (
-                        <div className="mt-8 flex gap-3 border-l-2 border-red-400 bg-red-50/60 px-4 py-3 text-sm text-red-700">
-                            <AlertCircle className="mt-0.5 size-4 shrink-0" />
-                            <span>{submitError}</span>
-                        </div>
-                    )}
-
-                    <div className="mt-10 flex flex-col-reverse gap-3 border-t border-slate-100 pt-7 sm:flex-row sm:items-center sm:justify-between">
-                        <p className="max-w-md text-xs leading-5 text-slate-400">
+                    <form
+                        className="form-panel"
+                        onSubmit={submitReview}
+                    >
+                        <h2>
                             {tr(
-                                "Jawapan ini tidak menentukan diagnosis. Keputusan akan diterangkan berdasarkan assessment yang digunakan.",
-                                "These answers do not determine a diagnosis. The result will be explained according to the assessment used.",
+                                "Maklumat ibu bapa",
+                                "Parent details",
                             )}
-                        </p>
+                        </h2>
 
-                        <Button
-                            type="button"
-                            size="lg"
-                            disabled={submitting}
-                            onClick={() => void onComplete(answers)}
-                            className="h-12 rounded-full px-7"
-                        >
-                            {submitting
-                                ? tr("Menyimpan...", "Saving...")
-                                : tr("Sahkan Jawapan", "Confirm Answers")}
+                        <div className="fields">
+                            <div className="field full">
+                                <label htmlFor="parentName">
+                                    {tr(
+                                        "Nama ibu / bapa / penjaga",
+                                        "Parent / guardian name",
+                                    )}
+                                </label>
 
-                            {!submitting && (
-                                <Check className="size-4" />
-                            )}
-                        </Button>
-                    </div>
+                                <input
+                                    id="parentName"
+                                    value={
+                                        parentForm.parentName
+                                    }
+                                    onChange={(
+                                        event,
+                                    ) =>
+                                        updateParent(
+                                            "parentName",
+                                            event.target
+                                                .value,
+                                        )
+                                    }
+                                    onBlur={() =>
+                                        updateParent(
+                                            "parentName",
+                                            toTitleCase(
+                                                parentForm.parentName,
+                                            ),
+                                        )
+                                    }
+                                    autoComplete="name"
+                                    required
+                                />
+
+                                {parentErrors.parentName && (
+                                    <span className="field-error">
+                                        {
+                                            parentErrors.parentName
+                                        }
+                                    </span>
+                                )}
+                            </div>
+
+                            <div className="field full">
+                                <label htmlFor="phone">
+                                    {tr(
+                                        "Nombor telefon",
+                                        "Phone number",
+                                    )}
+                                </label>
+
+                                <input
+                                    id="phone"
+                                    inputMode="tel"
+                                    autoComplete="tel"
+                                    value={
+                                        parentForm.phone
+                                    }
+                                    onChange={(
+                                        event,
+                                    ) =>
+                                        updateParent(
+                                            "phone",
+                                            event.target
+                                                .value,
+                                        )
+                                    }
+                                    onBlur={() =>
+                                        updateParent(
+                                            "phone",
+                                            formatMalaysiaPhoneForDisplay(
+                                                parentForm.phone,
+                                            ),
+                                        )
+                                    }
+                                    required
+                                />
+
+                                {parentErrors.phone && (
+                                    <span className="field-error">
+                                        {
+                                            parentErrors.phone
+                                        }
+                                    </span>
+                                )}
+                            </div>
+
+                            <div className="field full">
+                                <label htmlFor="email">
+                                    Email
+                                </label>
+
+                                <input
+                                    id="email"
+                                    type="email"
+                                    autoComplete="email"
+                                    value={
+                                        parentForm.email
+                                    }
+                                    onChange={(
+                                        event,
+                                    ) =>
+                                        updateParent(
+                                            "email",
+                                            event.target
+                                                .value,
+                                        )
+                                    }
+                                    onBlur={() =>
+                                        updateParent(
+                                            "email",
+                                            normalizeEmail(
+                                                parentForm.email,
+                                            ),
+                                        )
+                                    }
+                                    required
+                                />
+
+                                {parentErrors.email && (
+                                    <span className="field-error">
+                                        {
+                                            parentErrors.email
+                                        }
+                                    </span>
+                                )}
+                            </div>
+
+                            <div className="field full">
+                                <label htmlFor="location">
+                                    {tr(
+                                        "Lokasi",
+                                        "Location",
+                                    )}
+                                </label>
+
+                                <select
+                                    id="location"
+                                    value={
+                                        parentForm.location
+                                    }
+                                    onChange={(
+                                        event,
+                                    ) =>
+                                        updateParent(
+                                            "location",
+                                            event.target
+                                                .value,
+                                        )
+                                    }
+                                    required
+                                >
+                                    <option value="">
+                                        {tr(
+                                            "Pilih lokasi",
+                                            "Select location",
+                                        )}
+                                    </option>
+
+                                    {MALAYSIA_LOCATIONS.map(
+                                        (
+                                            location,
+                                        ) => (
+                                            <option
+                                                key={
+                                                    location
+                                                }
+                                                value={
+                                                    location
+                                                }
+                                            >
+                                                {
+                                                    location
+                                                }
+                                            </option>
+                                        ),
+                                    )}
+                                </select>
+
+                                {parentErrors.location && (
+                                    <span className="field-error">
+                                        {
+                                            parentErrors.location
+                                        }
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+
+                        <label className="check">
+                            <input
+                                type="checkbox"
+                                checked={consent}
+                                onChange={(
+                                    event,
+                                ) =>
+                                    setConsent(
+                                        event.target
+                                            .checked,
+                                    )
+                                }
+                            />
+
+                            <span>
+                                {tr(
+                                    "Saya bersetuju maklumat digunakan untuk rekod saringan dan sokongan Kizzu mengikut Dasar Privasi.",
+                                    "I agree to the use of this information for the screening record and Kizzu support under the Privacy Policy.",
+                                )}
+                            </span>
+                        </label>
+
+                        {(error || submitError) && (
+                            <p
+                                className="error"
+                                role="alert"
+                            >
+                                {
+                                    submitError ||
+                                    error
+                                }
+                            </p>
+                        )}
+
+                        <div className="form-actions">
+                            <button
+                                type="button"
+                                className="btn secondary"
+                                disabled={submitting}
+                                onClick={() => {
+                                    setReviewMode(
+                                        false,
+                                    )
+                                    setDomainIndex(
+                                        domains.length -
+                                        1,
+                                    )
+                                }}
+                            >
+                                {tr(
+                                    "Kembali",
+                                    "Back",
+                                )}
+                            </button>
+
+                            <button
+                                type="submit"
+                                className="btn"
+                                disabled={submitting}
+                            >
+                                {submitting
+                                    ? tr(
+                                        "Menyimpan...",
+                                        "Saving...",
+                                    )
+                                    : tr(
+                                        "Lihat ringkasan",
+                                        "View summary",
+                                    )}
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </ScreeningShell>
         )
     }
 
-    if (!currentDomain) {
-        return null
-    }
-
     return (
-        <ScreeningShell
-            step="03"
-            label="Assessment"
-            maxWidth="medium"
-        >
-            <div className="py-8 md:py-12">
-                <div className="mb-8 flex items-start justify-between gap-5">
-                    <button
-                        type="button"
-                        onClick={previousDomain}
-                        className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-slate-950"
-                    >
-                        <ArrowLeft className="size-4" />
-                        {tr("Kembali", "Back")}
-                    </button>
+        <ScreeningShell>
+            <div className="flow-wrap questions-wrap">
+                <ScreeningFlow
+                    current={2}
+                    assessmentCode={
+                        assessmentData
+                            .assessment
+                            .code
+                    }
+                />
 
-                    <div className="text-right">
-                        <p className="text-xs font-medium text-slate-400">
-                            {details.childName}
-                        </p>
-                        <p className="mt-1 text-xs font-semibold text-slate-600">
-                            {ageGroupLabel}
-                        </p>
-                    </div>
-                </div>
-
-                <div>
-                    <div className="mb-2 flex items-center justify-between text-xs">
-                        <span className="font-semibold text-slate-500">
-                            {tr("Kemajuan", "Progress")}
-                        </span>
-                        <span className="font-medium text-slate-400">
-                            {totalAnswered} / {assessmentData.total_questions}
-                        </span>
-                    </div>
-
-                    <Progress
-                        value={overallProgress}
-                        className="h-1.5"
-                    />
-                </div>
-
-                <header className="mt-12 max-w-2xl">
-                    <div className="flex items-center gap-3">
-                        <span className="font-mono text-xs font-semibold text-sky-600">
-                            {String(domainIndex + 1).padStart(2, "0")}
-                        </span>
-                        <span className="h-px w-8 bg-sky-500" />
-                        <span className="text-xs font-bold uppercase tracking-[0.16em] text-sky-600">
-                            Domain {domainIndex + 1} / {domains.length}
-                        </span>
-                    </div>
-
-                    <h1 className="mt-4 text-4xl font-black tracking-[-0.045em] text-slate-950 md:text-5xl">
-                        {language === "en" && currentDomain.name_en
-                            ? currentDomain.name_en
-                            : currentDomain.name_ms}
-                    </h1>
-
-                    <p className="mt-5 max-w-xl leading-7 text-slate-500">
+                <div className="page-heading">
+                    <p className="meta">
+                        {details.childName}
+                        {" · "}
                         {tr(
-                            "Pilih jawapan yang paling menggambarkan kebolehan anak sekarang.",
-                            "Choose the answer that best reflects your child's current ability.",
+                            "Bahagian",
+                            "Section",
+                        )}{" "}
+                        {domainIndex + 1}/
+                        {domains.length}
+                    </p>
+
+                    <div className="section-heading">
+                        <span className="area-icon">
+                            <DomainIcon
+                                code={
+                                    currentDomain.code
+                                }
+                            />
+                        </span>
+
+                        <h1>
+                            {domainName(
+                                currentDomain,
+                            )}
+                        </h1>
+                    </div>
+
+                    <p>
+                        {isSpk
+                            ? tr(
+                                "Pilih “Tercapai” jika kemahiran ini telah diperhatikan.",
+                                "Choose “Achieved” if you have observed this skill.",
+                            )
+                            : tr(
+                                "Pilih “Boleh” jika kemahiran ini pernah diperhatikan.",
+                                "Choose “Able” if you have observed this skill.",
+                            )}
+                    </p>
+                </div>
+
+                <div className="progress-box">
+                    <div
+                        className="track"
+                        role="progressbar"
+                        aria-valuemin={0}
+                        aria-valuemax={
+                            assessmentData.total_questions
+                        }
+                        aria-valuenow={
+                            totalAnswered
+                        }
+                    >
+                        <span
+                            style={{
+                                width: `${progress}%`,
+                            }}
+                        />
+                    </div>
+
+                    <p>
+                        {totalAnswered} /{" "}
+                        {
+                            assessmentData
+                                .total_questions
+                        }{" "}
+                        {tr(
+                            "jawapan",
+                            "answers",
                         )}
                     </p>
-                </header>
+                </div>
 
-                <section className="mt-10 border-t border-slate-200">
-                    {currentDomain.questions.map((question, index) => {
-                        const answer = answers[question.id]
+                <div className="question-list">
+                    {currentDomain.questions.map(
+                        (
+                            question,
+                            index,
+                        ) => {
+                            const answer =
+                                answers[
+                                question.id
+                                ]
 
-                        return (
-                            <article
-                                key={question.id}
-                                className="border-b border-slate-100 py-7 md:py-8"
-                            >
-                                <div className="grid gap-5 md:grid-cols-[42px_1fr]">
-                                    <div className="font-mono text-xs font-semibold text-slate-300 md:pt-1">
-                                        {String(index + 1).padStart(2, "0")}
-                                    </div>
+                            const unanswered =
+                                unansweredIds.includes(
+                                    question.id,
+                                )
+
+                            const subdomain =
+                                language === "en"
+                                    ? question
+                                        .subdomain_en ||
+                                    question
+                                        .subdomain_ms
+                                    : question
+                                        .subdomain_ms
+
+                            return (
+                                <section
+                                    key={
+                                        question.id
+                                    }
+                                    className={`question ${unanswered
+                                        ? "unanswered"
+                                        : ""
+                                        }`}
+                                >
+                                    <span className="num">
+                                        {String(
+                                            globalOffset +
+                                            index +
+                                            1,
+                                        ).padStart(
+                                            2,
+                                            "0",
+                                        )}
+                                    </span>
 
                                     <div>
-                                        {(language === "en"
-                                            ? question.subdomain_en ?? question.subdomain_ms
-                                            : question.subdomain_ms) && (
-                                            <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-sky-600">
-                                                {language === "en"
-                                                    ? question.subdomain_en ?? question.subdomain_ms
-                                                    : question.subdomain_ms}
-                                            </p>
+                                        {subdomain && (
+                                            <small className="question-subdomain">
+                                                {
+                                                    subdomain
+                                                }
+                                            </small>
                                         )}
 
-                                        <p className="text-base font-medium leading-7 text-slate-900 md:text-lg">
-                                            {language === "en"
-                                                ? question.question_en ?? question.question_ms
-                                                : question.question_ms}
+                                        <p>
+                                            {questionText(
+                                                question,
+                                            )}
                                         </p>
 
-                                        <div className="mt-5 grid grid-cols-2 gap-3 sm:max-w-md">
+                                        <div className="answer">
                                             <button
                                                 type="button"
-                                                aria-pressed={answer === true}
+                                                aria-pressed={
+                                                    answer ===
+                                                    true
+                                                }
                                                 onClick={() =>
                                                     answerQuestion(
                                                         question.id,
                                                         true,
                                                     )
                                                 }
-                                                className={`min-h-11 rounded-full border px-4 py-2.5 text-sm font-semibold transition ${
-                                                    answer === true
-                                                        ? "border-sky-500 bg-sky-500 text-white shadow-sm shadow-sky-100"
-                                                        : "border-slate-200 bg-white text-slate-600 hover:border-sky-300 hover:text-sky-700"
-                                                }`}
                                             >
-                                                {positiveLabel}
+                                                {
+                                                    positiveLabel
+                                                }
                                             </button>
 
                                             <button
                                                 type="button"
-                                                aria-pressed={answer === false}
+                                                className="no"
+                                                aria-pressed={
+                                                    answer ===
+                                                    false
+                                                }
                                                 onClick={() =>
                                                     answerQuestion(
                                                         question.id,
                                                         false,
                                                     )
                                                 }
-                                                className={`min-h-11 rounded-full border px-4 py-2.5 text-sm font-semibold transition ${
-                                                    answer === false
-                                                        ? "border-sky-200 bg-sky-50 text-sky-800"
-                                                        : "border-slate-200 bg-white text-slate-600 hover:border-sky-300 hover:text-sky-700"
-                                                }`}
                                             >
-                                                {negativeLabel}
+                                                {
+                                                    negativeLabel
+                                                }
                                             </button>
                                         </div>
                                     </div>
-                                </div>
-                            </article>
-                        )
-                    })}
-                </section>
+                                </section>
+                            )
+                        },
+                    )}
+                </div>
 
                 {error && (
-                    <div className="mt-6 flex gap-3 border-l-2 border-red-400 bg-red-50/60 px-4 py-3 text-sm text-red-700">
-                        <AlertCircle className="mt-0.5 size-4 shrink-0" />
+                    <p
+                        className="error"
+                        role="alert"
+                    >
                         {error}
-                    </div>
+                    </p>
                 )}
 
-                <div className="mt-8 flex flex-col gap-5 border-t border-slate-100 pt-7 sm:flex-row sm:items-center sm:justify-between">
-                    <p className="text-xs text-slate-400">
-                        {currentDomainAnswered} / {currentDomain.questions.length}{" "}
-                        {tr(
-                            "dijawab dalam domain ini",
-                            "answered in this domain",
-                        )}
-                    </p>
-
-                    <Button
+                <div className="form-actions">
+                    <button
                         type="button"
-                        size="lg"
-                        className="h-12 rounded-full px-7"
+                        className="btn secondary"
+                        onClick={
+                            previousDomain
+                        }
+                    >
+                        {tr(
+                            "Kembali",
+                            "Back",
+                        )}
+                    </button>
+
+                    <button
+                        type="button"
+                        className="btn"
                         onClick={nextDomain}
                     >
-                        {domainIndex === domains.length - 1
-                            ? tr("Semak Jawapan", "Review Answers")
-                            : tr("Seterusnya", "Next")}
-
-                        <ArrowRight className="size-4" />
-                    </Button>
+                        {domainIndex ===
+                            domains.length - 1
+                            ? tr(
+                                "Semak jawapan",
+                                "Review answers",
+                            )
+                            : tr(
+                                "Seterusnya",
+                                "Continue",
+                            )}
+                    </button>
                 </div>
             </div>
         </ScreeningShell>

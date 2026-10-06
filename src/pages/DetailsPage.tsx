@@ -1,38 +1,10 @@
-import {
-    ArrowLeft,
-    ArrowRight,
-} from "lucide-react"
+import { useEffect, useState } from "react"
 
-import {
-    useState,
-} from "react"
-
-import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-
+import ScreeningFlow from "@/components/screening/ScreeningFlow"
 import ScreeningShell from "@/components/screening/ScreeningShell"
 import { useLanguage } from "@/context/LanguageContext"
-
-import {
-    KLANG_VALLEY_LOCATIONS,
-    OTHER_STATES,
-} from "@/data/locations"
-
-import {
-    calculateAgeInMonths,
-    formatAge,
-} from "@/utils/age"
-
-import {
-    formatMalaysiaPhoneForDisplay,
-    isValidEmail,
-    isValidMalaysiaPhone,
-    normalizeEmail,
-    normalizeMalaysiaPhone,
-    toTitleCase,
-} from "@/utils/form"
+import { calculateAgeInMonths } from "@/utils/age"
+import { toTitleCase } from "@/utils/form"
 
 import type {
     AssessmentType,
@@ -41,700 +13,323 @@ import type {
 
 type DetailsPageProps = {
     assessment: AssessmentType
-
-    onBack: () => void
-
+    initialDetails?: ParentChildDetails | null
     onContinue: (
         details: ParentChildDetails,
         ageMonths: number,
     ) => Promise<void>
 }
 
-type FieldErrors = Partial<
-    Record<
-        keyof ParentChildDetails,
-        string
-    >
->
-
 export default function DetailsPage({
     assessment,
-    onBack,
+    initialDetails,
     onContinue,
 }: DetailsPageProps) {
-    const {
-        language,
-        tr,
-    } = useLanguage()
+    const { tr } = useLanguage()
 
-    const [form, setForm] =
-        useState<ParentChildDetails>({
-            childName: "",
-            childDob: "",
-            parentName: "",
-            phone: "",
-            email: "",
-            location: "",
-        })
+    const [childName, setChildName] =
+        useState(initialDetails?.childName ?? "")
 
-    const [consent, setConsent] =
-        useState(false)
+    const [childDob, setChildDob] =
+        useState(initialDetails?.childDob ?? "")
 
-    const [
-        outsideKlangValley,
-        setOutsideKlangValley,
-    ] =
-        useState(false)
-
-    const [
-        fieldErrors,
-        setFieldErrors,
-    ] = useState<FieldErrors>({})
-
-    const [
-        generalError,
-        setGeneralError,
-    ] =
+    const [error, setError] =
         useState<string | null>(null)
 
     const [loading, setLoading] =
         useState(false)
 
-    const ageMonths =
-        form.childDob
-            ? calculateAgeInMonths(
-                form.childDob,
+    useEffect(() => {
+        if (initialDetails) {
+            setChildName(initialDetails.childName)
+            setChildDob(initialDetails.childDob)
+        }
+    }, [initialDetails])
+
+    const isSpk =
+        assessment.code === "SPK"
+
+    async function submit(
+        event: React.FormEvent<HTMLFormElement>,
+    ) {
+        event.preventDefault()
+        setError(null)
+
+        const normalizedName =
+            toTitleCase(childName)
+
+        if (!normalizedName.trim()) {
+            setError(
+                tr(
+                    "Sila isi nama anak.",
+                    "Please enter your child's name.",
+                ),
             )
-            : null
-
-    function updateField(
-        field:
-            keyof ParentChildDetails,
-        value: string,
-    ) {
-        setForm((current) => ({
-            ...current,
-            [field]: value,
-        }))
-
-        setFieldErrors(
-            (current) => ({
-                ...current,
-                [field]: undefined,
-            }),
-        )
-
-        setGeneralError(null)
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Field Normalization
-    |--------------------------------------------------------------------------
-    */
-
-    function normalizeNameField(
-        field:
-            | "childName"
-            | "parentName",
-    ) {
-        updateField(
-            field,
-            toTitleCase(
-                form[field],
-            ),
-        )
-    }
-
-    function normalizeEmailField() {
-        updateField(
-            "email",
-            normalizeEmail(
-                form.email,
-            ),
-        )
-    }
-
-    function normalizePhoneField() {
-        if (!form.phone.trim()) {
             return
         }
 
-        updateField(
-            "phone",
-            formatMalaysiaPhoneForDisplay(
-                form.phone,
-            ),
-        )
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Validation
-    |--------------------------------------------------------------------------
-    */
-
-    function validateForm(
-        values: ParentChildDetails,
-    ): FieldErrors {
-        const errors: FieldErrors = {}
-
-        if (!values.childName.trim()) {
-            errors.childName =
-                tr("Nama anak diperlukan.", "Child\'s name is required.")
-        }
-
-        if (!values.childDob) {
-            errors.childDob =
-                tr("Tarikh lahir diperlukan.", "Date of birth is required.")
-        }
-
-        if (!values.parentName.trim()) {
-            errors.parentName =
-                tr("Nama ibu bapa / penjaga diperlukan.", "Parent / guardian name is required.")
-        }
-
-        if (!values.phone.trim()) {
-            errors.phone =
-                tr("No. telefon diperlukan.", "Phone number is required.")
-        } else if (
-            !isValidMalaysiaPhone(
-                values.phone,
-            )
-        ) {
-            errors.phone =
-                tr("Masukkan no. telefon Malaysia yang sah.", "Enter a valid Malaysian phone number.")
-        }
-
-        if (!values.email.trim()) {
-            errors.email =
-                tr("Email diperlukan.", "Email is required.")
-        } else if (
-            !isValidEmail(
-                values.email,
-            )
-        ) {
-            errors.email =
-                tr("Format email tidak sah.", "Invalid email format.")
-        }
-
-        if (!values.location) {
-            errors.location =
-                tr("Sila pilih lokasi.", "Please select a location.")
-        }
-
-        return errors
-    }
-
-    async function handleSubmit() {
-        setGeneralError(null)
-
-        const normalizedForm: ParentChildDetails =
-        {
-            ...form,
-
-            childName:
-                toTitleCase(
-                    form.childName,
-                ),
-
-            parentName:
-                toTitleCase(
-                    form.parentName,
-                ),
-
-            email:
-                normalizeEmail(
-                    form.email,
-                ),
-
-            phone:
-                normalizeMalaysiaPhone(
-                    form.phone,
-                ),
-        }
-
-        setForm({
-            ...normalizedForm,
-
-            phone:
-                normalizedForm.phone
-                    ? `+${normalizedForm.phone}`
-                    : "",
-        })
-
-        const errors =
-            validateForm(
-                normalizedForm,
-            )
-
-        setFieldErrors(errors)
-
-        if (
-            Object.keys(errors).length >
-            0
-        ) {
-            setGeneralError(
-                tr("Sila semak maklumat yang ditandakan.", "Please check the highlighted information."),
-            )
-
-            return
-        }
+        const ageMonths =
+            calculateAgeInMonths(childDob)
 
         if (ageMonths === null) {
-            setFieldErrors(
-                (current) => ({
-                    ...current,
-
-                    childDob:
-                        tr("Tarikh lahir tidak sah.", "Invalid date of birth."),
-                }),
+            setError(
+                tr(
+                    "Tarikh lahir tidak sah.",
+                    "Invalid date of birth.",
+                ),
             )
-
             return
         }
 
-        if (!consent) {
-            setGeneralError(
-                tr("Sila beri persetujuan sebelum meneruskan.", "Please provide consent before continuing."),
-            )
-
-            return
+        const details: ParentChildDetails = {
+            childName: normalizedName,
+            childDob,
+            parentName:
+                initialDetails?.parentName ?? "",
+            phone:
+                initialDetails?.phone ?? "",
+            email:
+                initialDetails?.email ?? "",
+            location:
+                initialDetails?.location ?? "",
         }
 
         try {
             setLoading(true)
-
-            await onContinue(
-                normalizedForm,
-                ageMonths,
-            )
-
+            await onContinue(details, ageMonths)
         } catch (error) {
-            setGeneralError(
+            setError(
                 error instanceof Error
                     ? error.message
-                    : tr("Tidak dapat memuatkan assessment.", "Unable to load the assessment."),
+                    : tr(
+                        "Saringan tidak dapat dimuatkan.",
+                        "Unable to load the assessment.",
+                    ),
             )
-
         } finally {
             setLoading(false)
         }
     }
 
     return (
-        <ScreeningShell
-            step="02"
-            label={tr("Maklumat", "Details")}
-            maxWidth="medium"
-        >
-            <div className="py-10 md:py-14">
-                <button
-                    type="button"
-                    onClick={onBack}
-                    className="mb-10 inline-flex items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-slate-950"
-                >
-                    <ArrowLeft className="size-4" />
-
-                    {tr("Kembali", "Back")}
-                </button>
-
-                <div className="mb-12">
-                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-sky-600">
-                        {assessment.code === "SPK"
-                            ? tr("Saringan Perkembangan", "Developmental Screening")
-                            : "Parental Checklist"}
-                    </p>
-
-                    <h1 className="mt-3 text-4xl font-black tracking-[-0.04em] md:text-5xl">
-                        {tr("Maklumat anak", "Child details")}
+        <ScreeningShell>
+            <div className="flow-wrap entry-sheet">
+                <section className="clean-intro">
+                    <h1>
+                        {isSpk ? (
+                            <>
+                                {tr(
+                                    "Saringan ",
+                                    "Child ",
+                                )}
+                                <span className="green-text">
+                                    {tr(
+                                        "Perkembangan",
+                                        "Development",
+                                    )}
+                                </span>{" "}
+                                <span className="blue-text">
+                                    {tr(
+                                        "Kanak-Kanak",
+                                        "Screening",
+                                    )}
+                                </span>
+                            </>
+                        ) : (
+                            <>
+                                {tr(
+                                    "Saringan ",
+                                    "Child ",
+                                )}
+                                <span className="green-text">
+                                    {tr(
+                                        "Lewat Perkembangan",
+                                        "Developmental Delay",
+                                    )}
+                                </span>{" "}
+                                <span className="blue-text">
+                                    {tr(
+                                        "Anak",
+                                        "Screening",
+                                    )}
+                                </span>
+                            </>
+                        )}
                     </h1>
 
-                    <p className="mt-3 max-w-xl leading-7 text-slate-500">
-                        {tr(
-                            "Umur anak akan ditentukan secara automatik daripada tarikh lahir.",
-                            "Your child's age will be calculated automatically from the date of birth.",
+                    <p>
+                        {isSpk ? (
+                            <>
+                                {tr(
+                                    "Saringan awal mengikut umur anak.",
+                                    "An age-based developmental screening.",
+                                )}
+                                <br />
+                                {tr(
+                                    "Percuma · Umur 1 hingga 6 tahun",
+                                    "Free · Ages 1 to 6 years",
+                                )}
+                            </>
+                        ) : (
+                            <>
+                                {tr(
+                                    "Semakan awal berdasarkan pemerhatian ibu bapa.",
+                                    "An initial review based on parent observations.",
+                                )}
+                                <br />
+                                {tr(
+                                    "Percuma · Umur 1 hingga bawah 6 tahun",
+                                    "Free · Ages 1 to under 6",
+                                )}
+                            </>
                         )}
                     </p>
-                </div>
+                </section>
 
-                {/* Child */}
+                <ScreeningFlow
+                    current={1}
+                    assessmentCode={assessment.code}
+                />
 
-                <section>
-                    <div className="mb-6 flex items-baseline justify-between border-b border-slate-200 pb-3">
-                        <h2 className="font-bold">
-                            {tr("Anak", "Child")}
-                        </h2>
+                <form
+                    className="form-panel"
+                    onSubmit={submit}
+                >
+                    <h2>
+                        {tr(
+                            "Maklumat anak",
+                            "Child details",
+                        )}
+                    </h2>
 
-                        <span className="text-xs text-slate-400">
-                            01
-                        </span>
-                    </div>
+                    <div className="fields">
+                        <div className="field full">
+                            <label htmlFor="childName">
+                                {tr(
+                                    "Nama anak",
+                                    "Child's name",
+                                )}
+                            </label>
 
-                    <div className="grid gap-6 md:grid-cols-2">
-                        <div className="space-y-2">
-                            <Label htmlFor="childName">
-                                {tr("Nama anak", "Child\'s name")}
-                            </Label>
-
-                            <Input
+                            <input
                                 id="childName"
+                                name="childName"
                                 autoComplete="name"
-                                value={form.childName}
+                                maxLength={100}
+                                value={childName}
                                 onChange={(event) =>
-                                    updateField(
-                                        "childName",
+                                    setChildName(
                                         event.target.value,
                                     )
                                 }
                                 onBlur={() =>
-                                    normalizeNameField(
-                                        "childName",
+                                    setChildName(
+                                        toTitleCase(childName),
                                     )
                                 }
-                                placeholder={tr("Nama anak", "Child\'s name")}
-                                className={
-                                    fieldErrors.childName
-                                        ? "h-12 rounded-xl border-red-400"
-                                        : "h-12 rounded-xl"
-                                }
+                                required
                             />
-
-                            {fieldErrors.childName && (
-                                <p className="text-xs font-medium text-red-600">
-                                    {
-                                        fieldErrors.childName
-                                    }
-                                </p>
-                            )}
                         </div>
 
-                        <div className="space-y-2">
-                            <Label htmlFor="childDob">
-                                {tr("Tarikh lahir", "Date of birth")}
-                            </Label>
+                        <div className="field full">
+                            <label htmlFor="childDob">
+                                {tr(
+                                    "Tarikh lahir",
+                                    "Date of birth",
+                                )}
+                            </label>
 
-                            <Input
+                            <input
                                 id="childDob"
+                                name="childDob"
                                 type="date"
-                                value={form.childDob}
+                                value={childDob}
+                                max={
+                                    new Date()
+                                        .toISOString()
+                                        .split("T")[0]
+                                }
                                 onChange={(event) =>
-                                    updateField(
-                                        "childDob",
+                                    setChildDob(
                                         event.target.value,
                                     )
                                 }
-                                className={
-                                    fieldErrors.childDob
-                                        ? "h-12 rounded-xl border-red-400"
-                                        : "h-12 rounded-xl"
-                                }
+                                required
                             />
-
-                            {fieldErrors.childDob && (
-                                <p className="text-xs font-medium text-red-600">
-                                    {
-                                        fieldErrors.childDob
-                                    }
-                                </p>
-                            )}
-
-                            {ageMonths !== null && (
-                                <p className="pt-1 text-sm font-semibold text-sky-600">
-                                    {language === "ms"
-                                        ? formatAge(ageMonths)
-                                        : `${Math.floor(ageMonths / 12)} ${Math.floor(ageMonths / 12) === 1 ? "year" : "years"}${ageMonths % 12 ? ` ${ageMonths % 12} ${ageMonths % 12 === 1 ? "month" : "months"}` : ""}`}
-                                    {" · "}
-                                    {ageMonths} {tr("bulan", "months")}
-                                </p>
-                            )}
                         </div>
                     </div>
-                </section>
 
-                {/* Parent */}
+                    {error && (
+                        <p
+                            className="error"
+                            role="alert"
+                        >
+                            {error}
+                        </p>
+                    )}
 
-                <section className="mt-12">
-                    <div className="mb-6 flex items-baseline justify-between border-b border-slate-200 pb-3">
-                        <h2 className="font-bold">
-                            {tr("Ibu bapa / penjaga", "Parent / guardian")}
-                        </h2>
-
-                        <span className="text-xs text-slate-400">
-                            02
-                        </span>
-                    </div>
-
-                    <div className="grid gap-6 md:grid-cols-2">
-                        <div className="space-y-2 md:col-span-2">
-                            <Label htmlFor="parentName">
-                                {tr("Nama", "Name")}
-                            </Label>
-
-                            <Input
-                                id="parentName"
-                                autoComplete="name"
-                                value={form.parentName}
-                                onChange={(event) =>
-                                    updateField(
-                                        "parentName",
-                                        event.target.value,
-                                    )
-                                }
-                                onBlur={() =>
-                                    normalizeNameField(
-                                        "parentName",
-                                    )
-                                }
-                                placeholder={tr("Nama ibu bapa / penjaga", "Parent / guardian name")}
-                                className={
-                                    fieldErrors.parentName
-                                        ? "h-12 rounded-xl border-red-400"
-                                        : "h-12 rounded-xl"
-                                }
-                            />
-
-                            {fieldErrors.parentName && (
-                                <p className="text-xs font-medium text-red-600">
-                                    {
-                                        fieldErrors.parentName
-                                    }
-                                </p>
-                            )}
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="phone">
-                                {tr("No. telefon", "Phone number")}
-                            </Label>
-
-                            <Input
-                                id="phone"
-                                type="tel"
-                                inputMode="tel"
-                                autoComplete="tel"
-                                value={form.phone}
-                                onChange={(event) =>
-                                    updateField(
-                                        "phone",
-                                        event.target.value,
-                                    )
-                                }
-                                onBlur={
-                                    normalizePhoneField
-                                }
-                                placeholder="0123456789"
-                                className={
-                                    fieldErrors.phone
-                                        ? "h-12 rounded-xl border-red-400"
-                                        : "h-12 rounded-xl"
-                                }
-                            />
-
-                            {fieldErrors.phone && (
-                                <p className="text-xs font-medium text-red-600">
-                                    {
-                                        fieldErrors.phone
-                                    }
-                                </p>
-                            )}
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="email">
-                                Email
-                            </Label>
-
-                            <Input
-                                id="email"
-                                type="email"
-                                inputMode="email"
-                                autoComplete="email"
-                                value={form.email}
-                                onChange={(event) =>
-                                    updateField(
-                                        "email",
-                                        event.target.value,
-                                    )
-                                }
-                                onBlur={
-                                    normalizeEmailField
-                                }
-                                placeholder="nama@email.com"
-                                className={
-                                    fieldErrors.email
-                                        ? "h-12 rounded-xl border-red-400"
-                                        : "h-12 rounded-xl"
-                                }
-                            />
-
-                            {fieldErrors.email && (
-                                <p className="text-xs font-medium text-red-600">
-                                    {
-                                        fieldErrors.email
-                                    }
-                                </p>
-                            )}
-                        </div>
-
-                        <div className="space-y-2 md:col-span-2">
-                            <Label htmlFor="location">
-                                {tr("Kawasan", "Area")}
-                            </Label>
-
-                            <select
-                                id="location"
-                                value={
-                                    outsideKlangValley
-                                        ? "__OTHER__"
-                                        : form.location
-                                }
-                                onChange={(event) => {
-                                    const value =
-                                        event.target.value
-
-                                    if (
-                                        value === "__OTHER__"
-                                    ) {
-                                        setOutsideKlangValley(
-                                            true,
-                                        )
-
-                                        updateField(
-                                            "location",
-                                            "",
-                                        )
-
-                                        return
-                                    }
-
-                                    setOutsideKlangValley(
-                                        false,
-                                    )
-
-                                    updateField(
-                                        "location",
-                                        value,
-                                    )
-                                }}
-                                className={`flex h-12 w-full appearance-none rounded-xl border bg-white px-3 text-sm outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-100 ${fieldErrors.location
-                                    ? "border-red-400"
-                                    : "border-slate-200"
-                                    }`}
-                            >
-                                <option value="">
-                                    {tr("Pilih kawasan", "Select area")}
-                                </option>
-
-                                <optgroup label={tr("KL & Lembah Klang", "KL & Klang Valley")}>
-                                    {KLANG_VALLEY_LOCATIONS.map(
-                                        (location) => (
-                                            <option
-                                                key={location}
-                                                value={location}
-                                            >
-                                                {location}
-                                            </option>
-                                        ),
-                                    )}
-                                </optgroup>
-
-                                <option value="__OTHER__">
-                                    {tr("Luar KL / Lembah Klang", "Outside KL / Klang Valley")}
-                                </option>
-                            </select>
-
-                            {outsideKlangValley && (
-                                <select
-                                    aria-label={tr("Pilih negeri", "Select state")}
-                                    value={form.location}
-                                    onChange={(event) =>
-                                        updateField(
-                                            "location",
-                                            event.target.value,
-                                        )
-                                    }
-                                    className={`mt-3 flex h-12 w-full appearance-none rounded-xl border bg-white px-3 text-sm outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-100 ${fieldErrors.location
-                                        ? "border-red-400"
-                                        : "border-slate-200"
-                                        }`}
-                                >
-                                    <option value="">
-                                        {tr("Pilih negeri", "Select state")}
-                                    </option>
-
-                                    {OTHER_STATES.map(
-                                        (state) => (
-                                            <option
-                                                key={state}
-                                                value={state}
-                                            >
-                                                {state}
-                                            </option>
-                                        ),
-                                    )}
-                                </select>
-                            )}
-
-                            {fieldErrors.location && (
-                                <p className="text-xs font-medium text-red-600">
-                                    {
-                                        fieldErrors.location
-                                    }
-                                </p>
-                            )}
-                        </div>
-                    </div>
-                </section>
-
-                {/* Consent */}
-
-                <div className="mt-10 flex gap-3 border-t border-slate-100 pt-7">
-                    <Checkbox
-                        id="consent"
-                        checked={consent}
-                        onCheckedChange={(value) =>
-                            setConsent(
-                                value === true,
-                            )
-                        }
-                    />
-
-                    <Label
-                        htmlFor="consent"
-                        className="max-w-xl cursor-pointer text-sm font-normal leading-6 text-slate-500"
-                    >
-                        {tr(
-                            "Saya bersetuju maklumat ini digunakan untuk menghasilkan keputusan assessment ini.",
-                            "I agree that this information may be used to generate the result for this assessment.",
-                        )}
-                    </Label>
-                </div>
-
-                {generalError && (
-                    <p className="mt-5 text-sm font-medium text-red-600">
-                        {generalError}
-                    </p>
-                )}
-
-                <div className="mt-10 flex justify-end">
-                    <Button
-                        size="lg"
+                    <button
+                        className="btn primary-wide"
+                        type="submit"
                         disabled={loading}
-                        onClick={() => {
-                            void handleSubmit()
-                        }}
-                        className="h-12 rounded-full px-7"
                     >
-                        {loading
-                            ? tr("Memuatkan...", "Loading...")
-                            : tr("Teruskan", "Continue")}
+                        <span>
+                            {loading
+                                ? tr(
+                                    "Memuatkan...",
+                                    "Loading...",
+                                )
+                                : isSpk
+                                    ? tr(
+                                        "Mula saringan",
+                                        "Start screening",
+                                    )
+                                    : tr(
+                                        "Mula checklist",
+                                        "Start checklist",
+                                    )}
+                        </span>
 
-                        {!loading && (
-                            <ArrowRight className="size-4" />
-                        )}
-                    </Button>
-                </div>
+                        <span aria-hidden="true">
+                            →
+                        </span>
+                    </button>
+
+                    <p className="form-note">
+                        {isSpk
+                            ? tr(
+                                "Maklumat ibu bapa diperlukan untuk menyimpan ringkasan saringan.",
+                                "Parent details are required to save the screening summary.",
+                            )
+                            : tr(
+                                "Maklumat ibu bapa diperlukan untuk menyimpan ringkasan checklist.",
+                                "Parent details are required to save the checklist summary.",
+                            )}
+                    </p>
+
+                    <p className="disclaimer">
+                        {isSpk
+                            ? tr(
+                                "Saringan awal berasaskan pemerhatian, bukan diagnosis.",
+                                "An initial observation-based screening, not a diagnosis.",
+                            )
+                            : tr(
+                                "Checklist ini berasaskan pemerhatian dan bukan diagnosis.",
+                                "This checklist is observation-based and is not a diagnosis.",
+                            )}{" "}
+
+                        <a
+                            href="/privacy-policy/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            {tr(
+                                "Privasi",
+                                "Privacy",
+                            )}
+                        </a>
+                    </p>
+                </form>
             </div>
         </ScreeningShell>
     )

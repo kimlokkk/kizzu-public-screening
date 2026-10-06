@@ -1,4 +1,4 @@
-export const KLANG_VALLEY_LOCATIONS = [
+export const MALAYSIA_LOCATIONS = [
     "Kuala Lumpur",
     "Cheras",
     "Ampang",
@@ -21,9 +21,6 @@ export const KLANG_VALLEY_LOCATIONS = [
     "Putrajaya",
     "Selayang",
     "Rawang",
-] as const
-
-export const OTHER_STATES = [
     "Selangor (Luar Lembah Klang)",
     "Johor",
     "Kedah",

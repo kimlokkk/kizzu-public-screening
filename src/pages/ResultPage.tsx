@@ -1,30 +1,34 @@
 import {
-    AlertCircle,
-    ArrowRight,
-    CheckCircle2,
-    Eye,
-    MessageCircle,
-    RefreshCcw,
-    ShieldCheck,
-} from "lucide-react"
-
-import {
     useEffect,
     useState,
 } from "react"
 
+import {
+    ChevronDown,
+} from "lucide-react"
+
+import ActivityIcon from "@/components/screening/ActivityIcon"
+import DomainIcon from "@/components/screening/DomainIcon"
+import WatchIcon from "@/components/screening/WatchIcon"
 import ScreeningShell from "@/components/screening/ScreeningShell"
 import { useLanguage } from "@/context/LanguageContext"
-import { Button } from "@/components/ui/button"
 import { getResult } from "@/services/assessment"
 
 import type {
     AssessmentResult,
+    RecommendationActivity,
 } from "@/types/assessment"
 
 type ResultPageProps = {
     referenceCode: string
     onStartNew: () => void
+}
+
+type Guidance = {
+    level: "good" | "watch" | "refer"
+    label: string
+    title: string
+    message: string
 }
 
 export default function ResultPage({
@@ -45,21 +49,28 @@ export default function ResultPage({
     const [error, setError] =
         useState<string | null>(null)
 
+    const [copied, setCopied] =
+        useState(false)
+
     useEffect(() => {
         async function loadResult() {
             try {
                 setLoading(true)
                 setError(null)
 
-                const result =
-                    await getResult(referenceCode)
-
-                setData(result)
+                setData(
+                    await getResult(
+                        referenceCode,
+                    ),
+                )
             } catch (error) {
                 setError(
                     error instanceof Error
                         ? error.message
-                        : tr("Keputusan tidak dapat dimuatkan.", "The result could not be loaded."),
+                        : tr(
+                            "Keputusan tidak dapat dimuatkan.",
+                            "The result could not be loaded.",
+                        ),
                 )
             } finally {
                 setLoading(false)
@@ -67,634 +78,868 @@ export default function ResultPage({
         }
 
         void loadResult()
-    }, [referenceCode, language])
+    }, [referenceCode])
 
     if (loading) {
         return (
-            <main className="flex min-h-screen items-center justify-center bg-white p-5">
-                <div className="text-center">
-                    <RefreshCcw className="mx-auto size-6 animate-spin text-sky-600" />
-                    <p className="mt-4 text-sm text-slate-400">
-                        {tr("Menyediakan keputusan...", "Preparing result...")}
+            <ScreeningShell>
+                <div className="loading">
+                    <h1>
+                        {tr(
+                            "Menyediakan ringkasan...",
+                            "Preparing your summary...",
+                        )}
+                    </h1>
+                    <p className="fine">
+                        {tr(
+                            "Sila tunggu sebentar.",
+                            "Please wait a moment.",
+                        )}
                     </p>
                 </div>
-            </main>
+            </ScreeningShell>
         )
     }
 
     if (error || !data) {
         return (
-            <main className="flex min-h-screen items-center justify-center bg-white px-5">
-                <div className="w-full max-w-md text-center">
-                    <div className="mx-auto flex size-11 items-center justify-center rounded-full bg-red-50 text-red-500">
-                        <AlertCircle className="size-5" />
-                    </div>
-
-                    <h1 className="mt-5 text-2xl font-black tracking-tight text-slate-950">
-                        {tr("Keputusan tidak dapat dibuka", "Unable to open result")}
+            <ScreeningShell>
+                <div className="loading">
+                    <h1>
+                        {tr(
+                            "Ringkasan belum dapat dibuka",
+                            "Unable to open the summary",
+                        )}
                     </h1>
-
-                    <p className="mt-2 text-sm leading-6 text-slate-500">
+                    <p className="fine">
                         {error}
                     </p>
-
-                    <Button
-                        className="mt-7 rounded-full"
+                    <button
+                        className="btn secondary"
+                        type="button"
                         onClick={onStartNew}
                     >
-                        {tr("Kembali", "Back")}
-                    </Button>
+                        {tr(
+                            "Kembali",
+                            "Back",
+                        )}
+                    </button>
                 </div>
-            </main>
+            </ScreeningShell>
         )
     }
 
     const result = data.result
-    const isPc = data.assessment.code === "PC"
-    const hasConcern =
-        result.total_negative > 0
+    const isPc =
+        data.assessment.code === "PC"
 
-    const reassessmentMonths =
-        data.age.months < 24
-            ? 2
-            : 3
+    const total =
+        result.total_positive +
+        result.total_negative
 
-    const localizedResult = (() => {
-        if (language === "ms") {
-            return {
-                title: result.title,
-                message: result.message,
-                nextAction: result.next_action,
-                positiveLabel: result.positive_label,
-                negativeLabel: result.negative_label,
-            }
-        }
-
+    const guidance: Guidance = (() => {
         if (isPc) {
+            if (result.total_negative === 0) {
+                return {
+                    level: "good",
+                    label: tr(
+                        "Panduan tindakan",
+                        "Action guide",
+                    ),
+                    title: tr(
+                        "Teruskan perkembangan",
+                        "Keep supporting development",
+                    ),
+                    message: tr(
+                        "Semua kemahiran dalam checklist umur ini telah diperhatikan. Teruskan aktiviti sesuai umur dan pemerhatian dari semasa ke semasa.",
+                        "All skills in this age checklist have been observed. Continue age-appropriate activities and ongoing observation.",
+                    ),
+                }
+            }
+
+            if (result.total_negative === 1) {
+                return {
+                    level: "watch",
+                    label: tr(
+                        "Panduan tindakan",
+                        "Action guide",
+                    ),
+                    title: tr(
+                        "Pantau & cuba bersama anak",
+                        "Monitor and try together",
+                    ),
+                    message: tr(
+                        "Satu kemahiran belum diperhatikan. Ini tidak semestinya bermaksud kelewatan. Cuba aktiviti yang dicadangkan dan berbincang dengan doktor atau profesional perkembangan kanak-kanak jika anda bimbang atau kemahiran masih belum muncul.",
+                        "One skill has not yet been observed. This does not necessarily mean there is a delay. Try the suggested activities and discuss it with a doctor or child-development professional if you are concerned or the skill is still not emerging.",
+                    ),
+                }
+            }
+
             return {
-                title: "Development Summary",
-                message:
-                    "This summary shows the skills that have and have not yet been observed based on the answers provided.",
-                nextAction:
-                    result.total_negative === 0
-                        ? "Continue age-appropriate developmental activities and keep observing your child's progress over time."
-                        : "Continue providing opportunities and suitable activities for skills that have not yet been observed. If you remain concerned, consider discussing your child's development with a qualified professional.",
-                positiveLabel: "Able",
-                negativeLabel: "Not Yet",
+                level: "refer",
+                label: tr(
+                    "Panduan tindakan",
+                    "Action guide",
+                ),
+                title: tr(
+                    "Disarankan berbincang dengan profesional",
+                    "Professional discussion recommended",
+                ),
+                message: tr(
+                    "Lebih daripada satu kemahiran belum diperhatikan. Checklist ini bukan diagnosis. Bawa ringkasan ini untuk berbincang dengan doktor atau profesional perkembangan kanak-kanak bagi menentukan sama ada saringan tervalidasi atau penilaian lanjut diperlukan.",
+                    "More than one skill has not yet been observed. This checklist is not a diagnosis. Share this summary with a doctor or child-development professional to decide whether validated screening or further assessment is appropriate.",
+                ),
             }
         }
 
         if (result.status === "ON_TRACK") {
             return {
-                title: "All Screening Items Achieved",
-                message:
-                    "Based on the answers provided, all screening items for this age group have been achieved.",
-                nextAction:
-                    "Continue providing age-appropriate developmental activities and stimulation.",
-                positiveLabel: "Achieved",
-                negativeLabel: "Not Achieved",
-            }
-        }
-
-        if (result.status === "MONITOR_REASSESS") {
-            return {
-                title: "Monitor and Reassess",
-                message:
-                    "One skill in this screening has not yet been achieved based on the answers provided.",
-                nextAction:
-                    `Provide suitable developmental opportunities and activities, then reassess after ${reassessmentMonths} months.`,
-                positiveLabel: "Achieved",
-                negativeLabel: "Not Achieved",
+                level: "good",
+                label: tr(
+                    "Keputusan saringan",
+                    "Screening result",
+                ),
+                title: tr(
+                    "Semua item tercapai",
+                    "All items achieved",
+                ),
+                message: tr(
+                    "Teruskan aktiviti dan rangsangan perkembangan yang sesuai dengan umur anak.",
+                    "Continue age-appropriate developmental activities and stimulation.",
+                ),
             }
         }
 
         if (
             result.status ===
-            "REFER_FOR_FURTHER_ASSESSMENT"
+            "MONITOR_REASSESS"
         ) {
+            const months =
+                data.age.months < 24
+                    ? 2
+                    : 3
+
             return {
-                title: "Further Assessment Recommended",
-                message:
-                    "Based on the response pattern in this screening, some developmental skills may benefit from further attention.",
-                nextAction:
-                    "Consider discussing the result with a child-development professional for a more comprehensive assessment and guidance.",
-                positiveLabel: "Achieved",
-                negativeLabel: "Not Achieved",
+                level: "watch",
+                label: tr(
+                    "Keputusan saringan",
+                    "Screening result",
+                ),
+                title: tr(
+                    "Pantau dan nilai semula",
+                    "Monitor and reassess",
+                ),
+                message: tr(
+                    `Terdapat satu kemahiran yang masih belum tercapai. Berikan peluang dan rangsangan yang sesuai, kemudian nilai semula selepas ${months} bulan.`,
+                    `One skill has not yet been achieved. Provide suitable developmental opportunities, then reassess after ${months} months.`,
+                ),
             }
         }
 
         return {
-            title: "Screening Result",
-            message:
-                "The screening result has been recorded.",
-            nextAction:
-                "Continue observing your child's development.",
-            positiveLabel: "Achieved",
-            negativeLabel: "Not Achieved",
+            level: "refer",
+            label: tr(
+                "Keputusan saringan",
+                "Screening result",
+            ),
+            title: tr(
+                "Disarankan penilaian lanjut",
+                "Further assessment recommended",
+            ),
+            message: tr(
+                "Corak jawapan menunjukkan kemahiran perkembangan yang memerlukan perhatian lanjut. Pertimbangkan untuk berbincang dengan profesional perkembangan kanak-kanak.",
+                "The response pattern suggests developmental skills that may need further attention. Consider discussing the result with a child-development professional.",
+            ),
         }
     })()
 
-    const ageGroupLabel = (() => {
-        if (language === "ms") {
-            return data.age.group
+    const positiveLabel =
+        isPc
+            ? tr("Boleh", "Able")
+            : tr("Tercapai", "Achieved")
+
+    const negativeLabel =
+        isPc
+            ? tr("Belum", "Not yet")
+            : tr(
+                "Tidak Tercapai",
+                "Not achieved",
+            )
+
+    const createdDate =
+        data.created_at?.split(" ")[0]
+
+    const dateLabel =
+        createdDate
+            ? new Intl.DateTimeFormat(
+                language === "ms"
+                    ? "ms-MY"
+                    : "en-MY",
+                {
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                },
+            ).format(
+                new Date(
+                    `${createdDate}T12:00:00`,
+                ),
+            )
+            : ""
+
+    function domainName(
+        domain:
+            AssessmentResult["result"]["domains"][number],
+    ) {
+        if (
+            language === "en" &&
+            domain.name_en
+        ) {
+            return domain.name_en
         }
 
-        const months =
-            data.age.months
+        return domain.name_ms
+    }
 
-        if (data.assessment.code === "SPK") {
-            if (months <= 17) return "1 Year"
-            if (months <= 23) return "1.5 Years"
-            if (months <= 35) return "2 Years"
-            if (months <= 47) return "3 Years"
-            if (months <= 59) return "4 Years"
-            if (months <= 71) return "5 Years"
-            return "6 Years"
+    function activityTitle(
+        activity: RecommendationActivity,
+    ) {
+        return language === "en"
+            ? activity.title_en ||
+            activity.title
+            : activity.title
+    }
+
+    function activityInstructions(
+        activity: RecommendationActivity,
+    ) {
+        return language === "en"
+            ? activity.instructions_en ||
+            activity.instructions
+            : activity.instructions
+    }
+
+    function activitySupports(
+        activity: RecommendationActivity,
+    ) {
+        return language === "en"
+            ? activity.supports_en ||
+            activity.supports
+            : activity.supports
+    }
+
+    function activitySafety(
+        activity: RecommendationActivity,
+    ) {
+        return language === "en"
+            ? activity.safety_note_en ||
+            activity.safety_note
+            : activity.safety_note
+    }
+
+    function recommendationDomainCode(
+        category: string,
+    ) {
+        const value =
+            category.toUpperCase()
+
+        if (
+            value.includes("LANGUAGE") ||
+            value.includes("SPEECH") ||
+            value.includes("COMMUNICATION")
+        ) {
+            return "SPEECH_LANGUAGE"
         }
 
-        if (months <= 17) return "1–1.5 Years"
-        if (months <= 23) return "1.5–2 Years"
-        if (months <= 35) return "2–3 Years"
-        if (months <= 47) return "3–4 Years"
-        if (months <= 59) return "4–5 Years"
-        return "5–6 Years"
-    })()
+        if (
+            value.includes("SOCIAL") ||
+            value.includes("EMOTIONAL") ||
+            value.includes("SELF_CARE") ||
+            value.includes("PERSONAL")
+        ) {
+            return "PERSONAL_SOCIAL"
+        }
+
+        if (
+            value.includes("FINE") ||
+            value.includes("VISUAL_MOTOR")
+        ) {
+            return "FINE_MOTOR"
+        }
+
+        if (
+            value.includes("GROSS") ||
+            value.includes("PHYSICAL") ||
+            value.includes("BALANCE") ||
+            value.includes("LOCOMOTOR") ||
+            value.includes("BALL")
+        ) {
+            return "GROSS_MOTOR"
+        }
+
+        if (
+            value.includes("COGNITIVE") ||
+            value.includes("PROBLEM") ||
+            value.includes("EARLY_LEARNING")
+        ) {
+            return "COGNITIVE"
+        }
+
+        return "GENERAL"
+    }
+
+    async function copyLink() {
+        try {
+            await navigator.clipboard.writeText(
+                window.location.href,
+            )
+            setCopied(true)
+
+            window.setTimeout(
+                () => setCopied(false),
+                1600,
+            )
+        } catch {
+            setCopied(false)
+        }
+    }
 
     const whatsappNumber = (
         import.meta.env
-            .VITE_KIZZU_WHATSAPP_NUMBER ?? ""
+            .VITE_KIZZU_WHATSAPP_NUMBER ??
+        ""
     ).replace(/\D/g, "")
 
-    const whatsappMessage =
+    const whatsappMessage = [
         language === "ms"
-            ? data.cta.whatsapp_message
-            : [
-                `Hi Kizzu, I have just completed the ${data.assessment.code === "SPK" ? "Child Development Screening" : "Parental Checklist"} on the Kizzu website.`,
-                "",
-                `Reference No.: ${data.reference_code}`,
-                `Result: ${localizedResult.title}`,
-                "",
-                "I would like further guidance.",
-            ].join("\n")
+            ? `Hi Kizzu, saya baru selesai ${isPc ? "Parental Checklist" : "Saringan Perkembangan Kanak-Kanak"} di laman Kizzu.`
+            : `Hi Kizzu, I have just completed the ${isPc ? "Parental Checklist" : "Child Development Screening"} on the Kizzu website.`,
+        "",
+        `${tr("No. Rujukan", "Reference No.")}: ${data.reference_code}`,
+        `${tr("Ringkasan", "Summary")}: ${guidance.title}`,
+        "",
+        tr(
+            "Saya ingin mendapatkan panduan lanjut.",
+            "I would like further guidance.",
+        ),
+    ].join("\n")
 
-    const repeatLabel = isPc
-        ? tr(
-            "Buat Checklist Semula",
-            "Restart Checklist",
-        )
-        : tr(
-            "Buat Saringan Semula",
-            "Restart Screening",
-        )
-
-    const localizedCta = (() => {
-        if (language === "ms") {
-            return {
-                title: data.cta.title,
-                description: data.cta.description,
-                buttonLabel: data.cta.button_label,
-            }
-        }
-
-        if (isPc) {
-            if (result.total_negative === 0) {
-                return {
-                    title: "Want to keep supporting your child's development?",
-                    description:
-                        "The Kizzu team can help you explore suitable activities and programmes to continue supporting your child's development.",
-                    buttonLabel: "WhatsApp Kizzu Admin",
-                }
-            }
-
-            return {
-                title: "Would you like to understand any of these skills further?",
-                description:
-                    "You can speak with the Kizzu team for guidance on your child's development and suitable activities.",
-                buttonLabel: "WhatsApp Kizzu Admin",
-            }
-        }
-
-        if (result.status === "ON_TRACK") {
-            return {
-                title: "Keep the positive development going",
-                description:
-                    "If you would like more activity ideas or want to learn about suitable Kizzu programmes, the Kizzu team is here to help.",
-                buttonLabel: "WhatsApp Kizzu Admin",
-            }
-        }
-
-        if (result.status === "MONITOR_REASSESS") {
-            return {
-                title: "Need guidance during the monitoring period?",
-                description:
-                    "Speak with the Kizzu team about suitable activities to support your child's skills before reassessment.",
-                buttonLabel: "WhatsApp Kizzu Admin",
-            }
-        }
-
-        return {
-            title: "Want to discuss the next step?",
-            description:
-                "The Kizzu team can help you understand options for further assessment and developmental support.",
-            buttonLabel: "WhatsApp Kizzu Admin",
-        }
-    })()
-
-    function openWhatsApp() {
-        if (!whatsappNumber) {
-            return
-        }
-
-        const message =
-            encodeURIComponent(whatsappMessage)
-
-        window.open(
-            `https://wa.me/${whatsappNumber}?text=${message}`,
-            "_blank",
-            "noopener,noreferrer",
-        )
-    }
+    const whatsappHref =
+        whatsappNumber
+            ? `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(
+                whatsappMessage,
+            )}`
+            : undefined
 
     return (
-        <ScreeningShell maxWidth="wide">
-            <div className="py-10 md:py-14">
-                {/* Hero */}
-
-                <section className="grid gap-8 border-b border-slate-200 pb-12 md:grid-cols-[1fr_220px] md:items-end">
-                    <div>
-                        <div className="flex items-center gap-3">
-                            <span className="h-px w-9 bg-sky-500" />
-                            <p className="text-xs font-bold uppercase tracking-[0.18em] text-sky-600">
-                                {data.assessment.name}
-                            </p>
-                        </div>
-
-                        <p className="mt-6 text-sm font-semibold text-slate-500">
+        <ScreeningShell>
+            <div className="result-wrap">
+                <section className="clean-intro result-heading">
+                    <h1>
+                        {tr(
+                            "Ringkasan",
+                            "Summary",
+                        )}
+                        <br />
+                        <span className="blue-text">
                             {data.child.name}
-                            <span className="mx-2 text-slate-300">·</span>
-                            {ageGroupLabel}
-                        </p>
+                        </span>
+                    </h1>
 
-                        <h1 className="mt-3 max-w-3xl text-4xl font-black leading-[1.02] tracking-[-0.05em] text-slate-950 md:text-6xl">
-                            {localizedResult.title}
-                        </h1>
-
-                        <p className="mt-5 max-w-2xl leading-7 text-slate-500">
-                            {localizedResult.message}
-                        </p>
-                    </div>
-
-                    <div className="md:text-right">
-                        <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400">
-                            {tr("No. Rujukan", "Reference No.")}
-                        </p>
-                        <p className="mt-2 break-all font-mono text-xs font-medium leading-5 text-slate-600">
-                            {data.reference_code}
-                        </p>
-                    </div>
+                    <p>
+                        {data.age.group}
+                        {dateLabel
+                            ? ` · ${dateLabel}`
+                            : ""}
+                    </p>
                 </section>
 
-                {/* Overall numbers */}
+                <div className="result-tools">
+                    <div className="result-counts">
+                        <span>
+                            <strong>
+                                {
+                                    result.total_positive
+                                }
+                            </strong>{" "}
+                            {positiveLabel}
+                        </span>
 
-                <section className="grid gap-8 border-b border-slate-200 py-10 sm:grid-cols-2">
+                        <span>
+                            <strong>
+                                {
+                                    result.total_negative
+                                }
+                            </strong>{" "}
+                            {negativeLabel}
+                        </span>
+                    </div>
+
                     <div>
-                        <p className="text-6xl font-black tracking-[-0.06em] text-slate-950 md:text-7xl">
-                            {result.total_positive}
-                        </p>
-                        <p className="mt-2 text-sm font-semibold text-slate-500">
-                            {localizedResult.positiveLabel}
-                        </p>
-                    </div>
-
-                    <div className="sm:border-l sm:border-slate-100 sm:pl-8">
-                        <p className="text-6xl font-black tracking-[-0.06em] text-sky-600 md:text-7xl">
-                            {result.total_negative}
-                        </p>
-                        <p className="mt-2 text-sm font-semibold text-slate-500">
-                            {localizedResult.negativeLabel}
-                        </p>
-                    </div>
-                </section>
-
-                {/* Domains */}
-
-                <section className="py-12 md:py-14">
-                    <div className="grid gap-8 md:grid-cols-[240px_1fr]">
-                        <div>
-                            <p className="text-xs font-bold uppercase tracking-[0.16em] text-sky-600">
-                                {tr("Ringkasan", "Summary")}
-                            </p>
-                            <h2 className="mt-2 text-2xl font-black tracking-[-0.035em] text-slate-950">
-                                {tr("Mengikut domain perkembangan", "By developmental domain")}
-                            </h2>
-                        </div>
-
-                        <div className="border-t border-slate-200">
-                            {result.domains.map((domain, index) => {
-                                const percentage =
-                                    domain.total > 0
-                                        ? Math.round(
-                                            (domain.positive /
-                                                domain.total) *
-                                            100,
-                                        )
-                                        : 0
-
-                                return (
-                                    <div
-                                        key={domain.id}
-                                        className="border-b border-slate-100 py-5"
-                                    >
-                                        <div className="flex items-start justify-between gap-5">
-                                            <div className="flex gap-4">
-                                                <span className="pt-0.5 font-mono text-xs text-slate-300">
-                                                    {String(index + 1).padStart(2, "0")}
-                                                </span>
-
-                                                <div>
-                                                    <p className="font-semibold text-slate-900">
-                                                        {language === "en" && domain.name_en
-                                                            ? domain.name_en
-                                                            : domain.name_ms}
-                                                    </p>
-                                                </div>
-                                            </div>
-
-                                            <div className="shrink-0 text-right">
-                                                <p className="font-bold text-slate-950">
-                                                    {domain.positive} / {domain.total}
-                                                </p>
-                                                {domain.negative > 0 && (
-                                                    <p className="mt-1 text-xs font-semibold text-sky-600">
-                                                        {domain.negative} {localizedResult.negativeLabel}
-                                                    </p>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-slate-100">
-                                            <div
-                                                className="h-full rounded-full bg-sky-500 transition-all"
-                                                style={{
-                                                    width: `${percentage}%`,
-                                                }}
-                                            />
-                                        </div>
-                                    </div>
+                        <button
+                            className="btn secondary"
+                            type="button"
+                            onClick={() =>
+                                void copyLink()
+                            }
+                        >
+                            {copied
+                                ? tr(
+                                    "Disalin",
+                                    "Copied",
                                 )
-                            })}
-                        </div>
-                    </div>
-                </section>
+                                : tr(
+                                    "Salin pautan",
+                                    "Copy link",
+                                )}
+                        </button>
 
-                {/* Items to watch */}
-
-                {result.items_to_watch.length > 0 && (
-                    <section className="border-t border-slate-200 py-12 md:py-14">
-                        <div className="grid gap-8 md:grid-cols-[240px_1fr]">
-                            <div>
-                                <p className="text-xs font-bold uppercase tracking-[0.16em] text-sky-600">
-                                    {tr("Perlu diberi perhatian", "Items to watch")}
-                                </p>
-                                <h2 className="mt-2 text-2xl font-black tracking-[-0.035em] text-slate-950">
-                                    {isPc
-                                        ? tr(
-                                            "Kemahiran yang masih belum diperhatikan",
-                                            "Skills not yet observed",
-                                        )
-                                        : tr(
-                                            "Kemahiran yang masih belum tercapai",
-                                            "Skills not yet achieved",
-                                        )}
-                                </h2>
-                            </div>
-
-                            <div className="border-t border-slate-200">
-                                {result.items_to_watch.map((item, index) => (
-                                    <div
-                                        key={item.question_id}
-                                        className="grid gap-3 border-b border-slate-100 py-6 sm:grid-cols-[42px_1fr]"
-                                    >
-                                        <span className="font-mono text-xs font-semibold text-sky-600">
-                                            {String(index + 1).padStart(2, "0")}
-                                        </span>
-
-                                        <div>
-                                            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-sky-600">
-                                                {language === "en"
-                                                    ? result.domains.find(
-                                                        (domain) =>
-                                                            domain.code === item.domain_code,
-                                                    )?.name_en ?? item.domain_name_ms
-                                                    : item.domain_name_ms}
-                                            </p>
-                                            <p className="mt-2 leading-7 text-slate-800">
-                                                {language === "en"
-                                                    ? item.question_en ?? item.question_ms
-                                                    : item.question_ms}
-                                            </p>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </section>
-                )}
-
-                {/* Recommendations / Enrichment */}
-
-                {data.recommendations.length > 0 && (
-                    <section className="border-t border-slate-200 py-12 md:py-14">
-                        <div className="grid gap-8 md:grid-cols-[240px_1fr]">
-                            <div>
-                                <p className="text-xs font-bold uppercase tracking-[0.16em] text-sky-600">
-                                    {hasConcern
-                                        ? tr(
-                                            "Cadangan di rumah",
-                                            "At-home suggestions",
-                                        )
-                                        : tr(
-                                            "Aktiviti pengayaan",
-                                            "Enrichment activities",
-                                        )}
-                                </p>
-
-                                <h2 className="mt-2 text-2xl font-black tracking-[-0.035em] text-slate-950">
-                                    {hasConcern
-                                        ? tr(
-                                            "Aktiviti yang boleh dicuba",
-                                            "Activities to try",
-                                        )
-                                        : tr(
-                                            "Teruskan perkembangan positif",
-                                            "Keep growing",
-                                        )}
-                                </h2>
-
-                                <p className="mt-3 text-sm leading-6 text-slate-500">
-                                    {hasConcern
-                                        ? tr(
-                                            "Aktiviti ini dipilih untuk menyokong kemahiran yang masih berkembang.",
-                                            "These activities are selected to support skills that are still developing.",
-                                        )
-                                        : isPc
-                                            ? tr(
-                                                "Semua kemahiran dalam checklist ini telah diperhatikan. Gunakan aktiviti ini sebagai idea pengayaan yang sesuai dengan umur anak.",
-                                                "All skills in this checklist have been observed. Use these as age-appropriate enrichment ideas for your child.",
-                                            )
-                                            : tr(
-                                                "Semua item saringan telah tercapai. Gunakan aktiviti ini untuk terus menyokong perkembangan anak.",
-                                                "All screening items have been achieved. Use these activities to keep supporting your child's development.",
-                                            )}
-                                </p>
-                            </div>
-
-                            <div className="border-t border-slate-200">
-                                {data.recommendations.map((activity, index) => (
-                                    <article
-                                        key={activity.id}
-                                        className="grid gap-4 border-b border-slate-100 py-7 sm:grid-cols-[42px_1fr]"
-                                    >
-                                        <span className="font-mono text-xs font-semibold text-sky-600">
-                                            {String(index + 1).padStart(2, "0")}
-                                        </span>
-
-                                        <div>
-                                            <h3 className="text-lg font-bold tracking-[-0.02em] text-slate-950">
-                                                {language === "en" ? activity.title_en ?? activity.title : activity.title}
-                                            </h3>
-
-                                            <p className="mt-3 leading-7 text-slate-600">
-                                                {language === "en" ? activity.instructions_en ?? activity.instructions : activity.instructions}
-                                            </p>
-
-                                            {(language === "en"
-                                                ? activity.supports_en ?? activity.supports
-                                                : activity.supports) && (
-                                                <div className="mt-4 border-l-2 border-sky-200 pl-4">
-                                                    <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">
-                                                        {tr("Menyokong", "Supports")}
-                                                    </p>
-                                                    <p className="mt-1 text-sm leading-6 text-slate-600">
-                                                        {language === "en"
-                                                            ? activity.supports_en ?? activity.supports
-                                                            : activity.supports}
-                                                    </p>
-                                                </div>
-                                            )}
-
-                                            {(language === "en"
-                                                ? activity.safety_note_en ?? activity.safety_note
-                                                : activity.safety_note) && (
-                                                <p className="mt-4 text-xs leading-5 text-slate-400">
-                                                    {tr("Nota keselamatan:", "Safety note:")}{" "}
-                                                    {language === "en"
-                                                        ? activity.safety_note_en ?? activity.safety_note
-                                                        : activity.safety_note}
-                                                </p>
-                                            )}
-                                        </div>
-                                    </article>
-                                ))}
-                            </div>
-                        </div>
-                    </section>
-                )}
-
-                {/* Next action */}
-
-                <section className="border-t border-slate-200 py-10">
-                    <div className="flex gap-4">
-                        <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full bg-sky-50 text-sky-600">
-                            {result.status === "ON_TRACK" ? (
-                                <CheckCircle2 className="size-4" />
-                            ) : result.status === "MONITOR_REASSESS" || isPc ? (
-                                <Eye className="size-4" />
-                            ) : (
-                                <ArrowRight className="size-4" />
+                        <button
+                            className="btn secondary"
+                            type="button"
+                            onClick={() =>
+                                window.print()
+                            }
+                        >
+                            {tr(
+                                "Cetak",
+                                "Print",
                             )}
-                        </div>
-
-                        <div>
-                            <p className="text-xs font-bold uppercase tracking-[0.14em] text-sky-600">
-                                {tr("Langkah seterusnya", "Next step")}
-                            </p>
-                            <p className="mt-2 max-w-2xl leading-7 text-slate-600">
-                                {localizedResult.nextAction}
-                            </p>
-                        </div>
+                        </button>
                     </div>
-                </section>
+                </div>
 
-                {/* Kizzu CTA */}
-
-                <section className="relative overflow-hidden rounded-[28px] bg-sky-50 px-6 py-8 md:px-9 md:py-10">
-                    <div
+                <section
+                    className="guidance-card"
+                    data-level={guidance.level}
+                >
+                    <span
+                        className="guidance-dot"
                         aria-hidden="true"
-                        className="absolute -right-12 -top-14 size-44 rounded-full border-[28px] border-white/60"
                     />
 
-                    <div className="relative z-10 flex flex-col gap-7 md:flex-row md:items-end md:justify-between">
-                        <div className="max-w-xl">
-                            <p className="text-xs font-bold uppercase tracking-[0.16em] text-sky-600">
-                                Kizzu
-                            </p>
+                    <div>
+                        <p className="guidance-label">
+                            {guidance.label}
+                        </p>
+                        <h2>
+                            {guidance.title}
+                        </h2>
+                        <p>
+                            {guidance.message}
+                        </p>
+                    </div>
+                </section>
 
-                            <h2 className="mt-3 text-2xl font-black tracking-[-0.035em] text-slate-950 md:text-3xl">
-                                {localizedCta.title}
+                <section className="domains">
+                    <div className="domain-grid">
+                        {result.domains.map(
+                            (domain) => (
+                                <article
+                                    key={domain.id}
+                                    className="domain-result"
+                                    data-domain={
+                                        domain.code
+                                    }
+                                >
+                                    <span className="area-icon">
+                                        <DomainIcon
+                                            code={
+                                                domain.code
+                                            }
+                                        />
+                                    </span>
+
+                                    <h2>
+                                        {domainName(
+                                            domain,
+                                        )}
+                                    </h2>
+
+                                    <p className="domain-count">
+                                        <strong>
+                                            {
+                                                domain.positive
+                                            }
+                                        </strong>{" "}
+                                        / {domain.total}{" "}
+                                        {
+                                            positiveLabel
+                                        }
+                                    </p>
+
+                                    <div className="track">
+                                        <span
+                                            style={{
+                                                width: `${
+                                                    domain.total >
+                                                    0
+                                                        ? (
+                                                            domain.positive /
+                                                            domain.total
+                                                        ) *
+                                                        100
+                                                        : 0
+                                                }%`,
+                                            }}
+                                        />
+                                    </div>
+                                </article>
+                            ),
+                        )}
+                    </div>
+
+                    <p className="form-note">
+                        {isPc
+                            ? tr(
+                                `Berdasarkan ${total} jawapan anda. Ini bukan pengesahan kelewatan perkembangan.`,
+                                `Based on your ${total} answers. This does not confirm developmental delay.`,
+                            )
+                            : tr(
+                                `Berdasarkan ${total} jawapan saringan.`,
+                                `Based on ${total} screening responses.`,
+                            )}
+                    </p>
+                </section>
+
+                {result.items_to_watch.length >
+                0 ? (
+                    <details className="result-details watch-card">
+                        <summary>
+                            <span className="watch-symbol">
+                                <WatchIcon />
+                            </span>
+
+                            <span className="watch-title">
+                                {isPc
+                                    ? tr(
+                                        "Belum diperhatikan",
+                                        "Not yet observed",
+                                    )
+                                    : tr(
+                                        "Belum tercapai",
+                                        "Not yet achieved",
+                                    )}
+
+                                <small>
+                                    {tr(
+                                        "Lihat kemahiran yang boleh diperhatikan lagi.",
+                                        "Skills to keep observing.",
+                                    )}
+                                </small>
+                            </span>
+
+                            <span className="detail-count">
+                                {
+                                    result
+                                        .items_to_watch
+                                        .length
+                                }
+                            </span>
+
+                            <ChevronDown
+                                className="details-chevron"
+                                aria-hidden="true"
+                            />
+                        </summary>
+
+                        <ul className="watch-list">
+                            {result.items_to_watch.map(
+                                (item) => {
+                                    const domain =
+                                        result.domains.find(
+                                            (
+                                                domain,
+                                            ) =>
+                                                domain.code ===
+                                                item.domain_code,
+                                        )
+
+                                    return (
+                                        <li
+                                            key={
+                                                item.question_id
+                                            }
+                                            data-domain={
+                                                item.domain_code
+                                            }
+                                        >
+                                            <span className="watch-item-icon">
+                                                <DomainIcon
+                                                    code={
+                                                        item.domain_code
+                                                    }
+                                                />
+                                            </span>
+
+                                            <div className="watch-item-copy">
+                                                <small>
+                                                    {domain
+                                                        ? domainName(
+                                                            domain,
+                                                        )
+                                                        : language === "en"
+                                                            ? item.domain_name_en ||
+                                                            item.domain_name_ms
+                                                            : item.domain_name_ms}
+                                                </small>
+
+                                                <p>
+                                                    {language ===
+                                                    "en"
+                                                        ? item.question_en ||
+                                                        item.question_ms
+                                                        : item.question_ms}
+                                                </p>
+                                            </div>
+                                        </li>
+                                    )
+                                },
+                            )}
+                        </ul>
+                    </details>
+                ) : (
+                    <p className="positive-note">
+                        {isPc
+                            ? tr(
+                                "Semua kemahiran yang ditanya dalam checklist ini telah diperhatikan.",
+                                "All skills asked about in this checklist have been observed.",
+                            )
+                            : tr(
+                                "Semua item saringan bagi kumpulan umur ini telah tercapai.",
+                                "All screening items for this age group have been achieved.",
+                            )}
+                    </p>
+                )}
+
+                {data.recommendations.length >
+                    0 && (
+                    <section className="activities">
+                        <div className="activities-heading">
+                            <h2>
+                                {result.total_negative >
+                                0
+                                    ? tr(
+                                        "Cuba bersama anak",
+                                        "Try together",
+                                    )
+                                    : tr(
+                                        "Aktiviti pengayaan",
+                                        "Enrichment activities",
+                                    )}
                             </h2>
 
-                            <p className="mt-3 leading-7 text-slate-600">
-                                {localizedCta.description}
-                            </p>
-
-                            <p className="mt-4 text-xs leading-5 text-slate-400">
-                                {tr("Kongsi No. Rujukan assessment untuk memudahkan perbincangan dengan team Kizzu.", "Share the assessment reference number to make it easier to discuss the result with the Kizzu team.")}
+                            <p>
+                                {tr(
+                                    "Pilih satu aktiviti untuk bermula.",
+                                    "Choose one activity to start.",
+                                )}
                             </p>
                         </div>
 
-                        <Button
-                            size="lg"
-                            disabled={!whatsappNumber}
-                            onClick={openWhatsApp}
-                            className="h-12 shrink-0 rounded-full px-6"
-                        >
-                            <MessageCircle className="size-4" />
-                            {localizedCta.buttonLabel}
-                        </Button>
+                        <div className="activity-stack">
+                            {data.recommendations.map(
+                                (
+                                    activity,
+                                ) => {
+                                    const activityDomain =
+                                        recommendationDomainCode(
+                                            activity.category,
+                                        )
+
+                                    return (
+                                    <details
+                                        className="activity-card"
+                                        data-domain={
+                                            activityDomain
+                                        }
+                                        key={
+                                            activity.id
+                                        }
+                                    >
+                                        <summary>
+                                            <span className="activity-icon">
+                                                <ActivityIcon
+                                                    category={
+                                                        activity.category
+                                                    }
+                                                />
+                                            </span>
+
+                                            <span className="activity-title">
+                                                <strong>
+                                                    {activityTitle(
+                                                        activity,
+                                                    )}
+                                                </strong>
+
+                                                {activitySupports(
+                                                    activity,
+                                                ) && (
+                                                    <small>
+                                                        {activitySupports(
+                                                            activity,
+                                                        )}
+                                                    </small>
+                                                )}
+                                            </span>
+
+                                            <span
+                                                className="activity-toggle"
+                                                aria-hidden="true"
+                                            >
+                                                <ChevronDown />
+                                            </span>
+                                        </summary>
+
+                                        <div className="activity-body">
+                                            <p className="instruction-label">
+                                                {tr(
+                                                    "Cara cuba",
+                                                    "How to try",
+                                                )}
+                                            </p>
+
+                                            <p>
+                                                {activityInstructions(
+                                                    activity,
+                                                )}
+                                            </p>
+
+                                            {activitySafety(
+                                                activity,
+                                            ) && (
+                                                <p className="activity-safety">
+                                                    {tr(
+                                                        "Nota keselamatan:",
+                                                        "Safety note:",
+                                                    )}{" "}
+                                                    {activitySafety(
+                                                        activity,
+                                                    )}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </details>
+                                    )
+                                },
+                            )}
+                        </div>
+                    </section>
+                )}
+
+                <section className="next-step support-card">
+                    <span className="support-icon area-icon">
+                        <DomainIcon
+                            code="LANGUAGE_COMMUNICATION"
+                        />
+                    </span>
+
+                    <div className="support-copy">
+                        <h2>
+                            {tr(
+                                "Bincang langkah seterusnya",
+                                "Let's talk about next steps",
+                            )}
+                        </h2>
+
+                        <p>
+                            {guidance.level ===
+                            "refer"
+                                ? tr(
+                                    "Kongsikan ringkasan ini dengan pasukan Kizzu untuk memahami pilihan penilaian dan sokongan yang sesuai.",
+                                    "Share this summary with the Kizzu team to understand suitable assessment and support options.",
+                                )
+                                : tr(
+                                    "Kongsikan ringkasan ini jika anda mahu panduan aktiviti atau perkembangan anak.",
+                                    "Share this summary if you would like guidance on activities or your child's development.",
+                                )}
+                        </p>
                     </div>
 
-                    {!whatsappNumber && (
-                        <p className="relative z-10 mt-4 text-xs text-slate-500">
-                            {tr("Nombor WhatsApp admin belum dikonfigurasi.", "The admin WhatsApp number has not been configured.")}
-                        </p>
+                    {whatsappHref ? (
+                        <a
+                            className="btn"
+                            href={whatsappHref}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            {tr(
+                                "Bincang dengan Kizzu",
+                                "Talk to Kizzu",
+                            )}
+                            <span aria-hidden="true">
+                                ↗
+                            </span>
+                        </a>
+                    ) : (
+                        <button
+                            type="button"
+                            className="btn"
+                            disabled
+                        >
+                            {tr(
+                                "WhatsApp belum dikonfigurasi",
+                                "WhatsApp not configured",
+                            )}
+                        </button>
                     )}
                 </section>
 
-                {/* Footer */}
+                <p className="disclaimer">
+                    {isPc
+                        ? tr(
+                            "Checklist ini berdasarkan pemerhatian ibu bapa dan bukan alat diagnosis atau pengganti saringan perkembangan yang tervalidasi. Jika anak kehilangan kemahiran yang pernah dikuasai, atau anda bimbang tentang perkembangannya, dapatkan nasihat profesional tanpa menunggu checklist seterusnya.",
+                            "This checklist is based on parent observations and is not a diagnostic tool or a substitute for validated developmental screening. If your child loses a skill they previously had, or you are concerned about their development, seek professional advice without waiting for the next checklist.",
+                        )
+                        : tr(
+                            "Keputusan SPK ialah panduan awal berdasarkan jawapan yang diberikan dan bukan diagnosis.",
+                            "The SPK result is an initial guide based on the answers provided and is not a diagnosis.",
+                        )}
+                </p>
 
-                <footer className="mt-8 border-t border-slate-100 pt-6">
-                    <div className="flex gap-3 text-slate-400">
-                        <ShieldCheck className="mt-0.5 size-4 shrink-0" />
-                        <p className="max-w-2xl text-xs leading-5">
-                            {language === "ms"
-                                ? data.disclaimer
-                                : isPc
-                                    ? "This checklist is a developmental observation summary and is not a diagnostic tool or a substitute for professional assessment."
-                                    : "This result is an initial guide based on the answers provided and is not a diagnosis."}
-                        </p>
-                    </div>
+                <details className="reference-details">
+                    <summary>
+                        <span>
+                            {tr(
+                                "Rujukan & privasi",
+                                "Reference & privacy",
+                            )}
+                        </span>
 
-                    <div className="mt-8 flex justify-center">
-                        <Button
-                            variant="outline"
-                            onClick={onStartNew}
-                            className="rounded-full"
-                        >
-                            {repeatLabel}
-                        </Button>
-                    </div>
-                </footer>
+                        <ChevronDown
+                            className="details-chevron"
+                            aria-hidden="true"
+                        />
+                    </summary>
+
+                    <p className="reference">
+                        {data.reference_code}
+                    </p>
+
+                    <p className="form-note">
+                        {tr(
+                            "Pautan ini membuka ringkasan anak anda. Kongsi hanya dengan orang yang dipercayai.",
+                            "This link opens your child's summary. Share it only with people you trust.",
+                        )}
+                    </p>
+                </details>
+
+                <button
+                    className="inline-link new-checklist"
+                    type="button"
+                    onClick={onStartNew}
+                >
+                    {isPc
+                        ? tr(
+                            "Checklist baharu",
+                            "New checklist",
+                        )
+                        : tr(
+                            "Saringan baharu",
+                            "New screening",
+                        )}
+                </button>
             </div>
         </ScreeningShell>
     )

@@ -85,6 +85,7 @@ export type ResultWatchItem = {
 
     domain_code: string
     domain_name_ms: string
+    domain_name_en?: string | null
 
     question_ms: string
     question_en: string | null
