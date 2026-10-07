@@ -5,3 +5,4 @@
 apply-pc-result-refinement.*
 api/config/database.local.php
 node_modules
+api.zip
