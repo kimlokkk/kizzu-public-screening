@@ -145,8 +145,7 @@ export async function submitAssessment(
                         ? ""
                         : details.location,
 
-                consent:
-                    assessmentCode !== "PC",
+                consent: true,
 
                 answers:
                     answerList,
