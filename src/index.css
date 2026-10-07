@@ -2195,6 +2195,10 @@ body {
   line-height: 1.9;
 }
 
+.entry-sheet .form-panel {
+  margin-top: 24px;
+}
+
 .entry-sheet .form-panel .form-note {
   margin-top: 13px;
 }
