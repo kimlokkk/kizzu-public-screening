@@ -134,7 +134,7 @@ function App() {
 
         if (assessmentCode === "PC") {
             document.title =
-                "Kizzu Kids | Parental Checklist"
+                "Kizzu Kids | Saringan Lewat Perkembangan Anak"
             return
         }
 
