@@ -141,9 +141,12 @@ export async function submitAssessment(
                     details.email,
 
                 location:
-                    details.location,
+                    assessmentCode === "PC"
+                        ? ""
+                        : details.location,
 
-                consent: true,
+                consent:
+                    assessmentCode !== "PC",
 
                 answers:
                     answerList,

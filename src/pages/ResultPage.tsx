@@ -49,9 +49,6 @@ export default function ResultPage({
     const [error, setError] =
         useState<string | null>(null)
 
-    const [copied, setCopied] =
-        useState(false)
-
     useEffect(() => {
         async function loadResult() {
             try {
@@ -86,8 +83,8 @@ export default function ResultPage({
                 <div className="loading">
                     <h1>
                         {tr(
-                            "Menyediakan ringkasan...",
-                            "Preparing your summary...",
+                            "Menyediakan keputusan...",
+                            "Preparing your results...",
                         )}
                     </h1>
                     <p className="fine">
@@ -107,8 +104,8 @@ export default function ResultPage({
                 <div className="loading">
                     <h1>
                         {tr(
-                            "Ringkasan belum dapat dibuka",
-                            "Unable to open the summary",
+                            "Keputusan belum dapat dibuka",
+                            "Unable to open the results",
                         )}
                     </h1>
                     <p className="fine">
@@ -133,26 +130,22 @@ export default function ResultPage({
     const isPc =
         data.assessment.code === "PC"
 
-    const total =
-        result.total_positive +
-        result.total_negative
-
     const guidance: Guidance = (() => {
         if (isPc) {
             if (result.total_negative === 0) {
                 return {
                     level: "good",
                     label: tr(
-                        "Panduan tindakan",
-                        "Action guide",
+                        "Langkah seterusnya",
+                        "Next step",
                     ),
                     title: tr(
                         "Teruskan perkembangan",
                         "Keep supporting development",
                     ),
                     message: tr(
-                        "Semua kemahiran dalam checklist umur ini telah diperhatikan. Teruskan aktiviti sesuai umur dan pemerhatian dari semasa ke semasa.",
-                        "All skills in this age checklist have been observed. Continue age-appropriate activities and ongoing observation.",
+                        "Semua kemahiran dalam saringan ini telah diperhatikan. Teruskan aktiviti sesuai umur dan pemerhatian dari semasa ke semasa.",
+                        "All skills in this screening have been observed. Continue age-appropriate activities and ongoing observation.",
                     ),
                 }
             }
@@ -161,16 +154,16 @@ export default function ResultPage({
                 return {
                     level: "watch",
                     label: tr(
-                        "Panduan tindakan",
-                        "Action guide",
+                        "Langkah seterusnya",
+                        "Next step",
                     ),
                     title: tr(
                         "Pantau & cuba bersama anak",
                         "Monitor and try together",
                     ),
                     message: tr(
-                        "Satu kemahiran belum diperhatikan. Ini tidak semestinya bermaksud kelewatan. Cuba aktiviti yang dicadangkan dan berbincang dengan doktor atau profesional perkembangan kanak-kanak jika anda bimbang atau kemahiran masih belum muncul.",
-                        "One skill has not yet been observed. This does not necessarily mean there is a delay. Try the suggested activities and discuss it with a doctor or child-development professional if you are concerned or the skill is still not emerging.",
+                        "Satu kemahiran belum diperhatikan. Ini tidak semestinya bermaksud kelewatan. Cuba aktiviti yang dicadangkan dan berbincang dengan pakar perkembangan kanak-kanak jika anda bimbang atau kemahiran masih belum muncul.",
+                        "One skill has not yet been observed. This does not necessarily mean there is a delay. Try the suggested activities and speak with a child development specialist if you are concerned or the skill is still not emerging.",
                     ),
                 }
             }
@@ -178,16 +171,16 @@ export default function ResultPage({
             return {
                 level: "refer",
                 label: tr(
-                    "Panduan tindakan",
-                    "Action guide",
+                    "Langkah seterusnya",
+                    "Next step",
                 ),
                 title: tr(
-                    "Disarankan berbincang dengan profesional",
-                    "Professional discussion recommended",
+                    "Dapatkan pandangan pakar seawal mungkin",
+                    "Speak with a child development specialist soon",
                 ),
                 message: tr(
-                    "Lebih daripada satu kemahiran belum diperhatikan. Checklist ini bukan diagnosis. Bawa ringkasan ini untuk berbincang dengan doktor atau profesional perkembangan kanak-kanak bagi menentukan sama ada saringan tervalidasi atau penilaian lanjut diperlukan.",
-                    "More than one skill has not yet been observed. This checklist is not a diagnosis. Share this summary with a doctor or child-development professional to decide whether validated screening or further assessment is appropriate.",
+                    "Beberapa kemahiran belum diperhatikan. Bawa hasil saringan ini kepada pakar perkembangan kanak-kanak seawal mungkin untuk menentukan langkah seterusnya. Saringan ini bukan diagnosis.",
+                    "Several skills have not yet been observed. Share these screening results with a child development specialist as soon as possible to discuss the next steps. This screening is not a diagnosis.",
                 ),
             }
         }
@@ -258,14 +251,6 @@ export default function ResultPage({
             ? tr("Boleh", "Able")
             : tr("Tercapai", "Achieved")
 
-    const negativeLabel =
-        isPc
-            ? tr("Belum", "Not yet")
-            : tr(
-                "Tidak Tercapai",
-                "Not achieved",
-            )
-
     const createdDate =
         data.created_at?.split(" ")[0]
 
@@ -287,7 +272,7 @@ export default function ResultPage({
             )
             : ""
 
-    const pcAgeLabel = (() => {
+    const exactAgeLabel = (() => {
         const years = Math.floor(
             data.age.months / 12,
         )
@@ -296,20 +281,14 @@ export default function ResultPage({
             data.age.months % 12
 
         if (language === "ms") {
-            return months > 0
-                ? `${years} tahun ${months} bulan`
-                : `${years} tahun`
+            return `${years} tahun ${months} bulan`
         }
 
-        const yearText =
-            `${years} ${years === 1 ? "year" : "years"}`
-
-        if (months === 0) {
-            return yearText
-        }
-
-        return `${yearText} ${months} ${months === 1 ? "month" : "months"
-            }`
+        return `${years} ${
+            years === 1 ? "year" : "years"
+        } ${months} ${
+            months === 1 ? "month" : "months"
+        }`
     })()
 
     function domainName(
@@ -413,41 +392,22 @@ export default function ResultPage({
         return "GENERAL"
     }
 
-    async function copyLink() {
-        try {
-            await navigator.clipboard.writeText(
-                window.location.href,
-            )
-            setCopied(true)
-
-            window.setTimeout(
-                () => setCopied(false),
-                1600,
-            )
-        } catch {
-            setCopied(false)
-        }
-    }
-
     const whatsappNumber = (
         import.meta.env
             .VITE_KIZZU_WHATSAPP_NUMBER ??
         ""
     ).replace(/\D/g, "")
 
-    const whatsappMessage = [
-        language === "ms"
-            ? `Hi Kizzu, saya baru selesai ${isPc ? "Parental Checklist" : "Saringan Perkembangan Kanak-Kanak"} di laman Kizzu.`
-            : `Hi Kizzu, I have just completed the ${isPc ? "Parental Checklist" : "Child Development Screening"} on the Kizzu website.`,
-        "",
-        `${tr("No. Rujukan", "Reference No.")}: ${data.reference_code}`,
-        `${tr("Ringkasan", "Summary")}: ${guidance.title}`,
-        "",
-        tr(
-            "Saya ingin mendapatkan panduan lanjut.",
-            "I would like further guidance.",
-        ),
-    ].join("\n")
+    const whatsappMessage =
+        isPc
+            ? tr(
+                "Hai Kizzu, saya ingin semak perkembangan anak saya dengan occupational therapist.",
+                "Hi Kizzu, I would like to have my child's development checked by an occupational therapist.",
+            )
+            : tr(
+                "Hai Kizzu, saya ingin berbincang tentang hasil saringan perkembangan anak saya dengan occupational therapist.",
+                "Hi Kizzu, I would like to discuss my child's developmental screening results with an occupational therapist.",
+            )
 
     const whatsappHref =
         whatsappNumber
@@ -456,22 +416,34 @@ export default function ResultPage({
             )}`
             : undefined
 
+    const watchedDomainCodes =
+        Array.from(
+            new Set(
+                result.items_to_watch.map(
+                    (item) =>
+                        item.domain_code,
+                ),
+            ),
+        )
+
     return (
         <ScreeningShell>
             <div
                 className="result-wrap"
-                data-assessment={data.assessment.code}
+                data-assessment={
+                    data.assessment.code
+                }
             >
                 <section className="clean-intro result-heading">
                     <h1>
                         {isPc
                             ? tr(
-                                "Ringkasan saringan",
-                                "Screening summary",
+                                "Hasil Saringan Perkembangan Anak",
+                                "Child Development Screening Results",
                             )
                             : tr(
-                                "Ringkasan",
-                                "Summary",
+                                "Hasil Saringan Perkembangan Kanak-Kanak",
+                                "Child Development Screening Results",
                             )}
                         <br />
                         <span className="blue-text">
@@ -480,90 +452,18 @@ export default function ResultPage({
                     </h1>
 
                     <p>
-                        {isPc
-                            ? pcAgeLabel
-                            : data.age.group}
+                        {tr(
+                            "Umur",
+                            "Age",
+                        )}:{" "}
+                        {exactAgeLabel}
                         {dateLabel
-                            ? ` · ${dateLabel}`
+                            ? ` · ${tr(
+                                "Tarikh saringan",
+                                "Screening date",
+                            )}: ${dateLabel}`
                             : ""}
                     </p>
-                </section>
-
-                <div className="result-tools">
-                    <div className="result-counts">
-                        <span>
-                            <strong>
-                                {
-                                    result.total_positive
-                                }
-                            </strong>{" "}
-                            {positiveLabel}
-                        </span>
-
-                        <span>
-                            <strong>
-                                {
-                                    result.total_negative
-                                }
-                            </strong>{" "}
-                            {negativeLabel}
-                        </span>
-                    </div>
-
-                    <div>
-                        <button
-                            className="btn secondary"
-                            type="button"
-                            onClick={() =>
-                                void copyLink()
-                            }
-                        >
-                            {copied
-                                ? tr(
-                                    "Disalin",
-                                    "Copied",
-                                )
-                                : tr(
-                                    "Salin pautan",
-                                    "Copy link",
-                                )}
-                        </button>
-
-                        <button
-                            className="btn secondary"
-                            type="button"
-                            onClick={() =>
-                                window.print()
-                            }
-                        >
-                            {tr(
-                                "Cetak",
-                                "Print",
-                            )}
-                        </button>
-                    </div>
-                </div>
-
-                <section
-                    className="guidance-card"
-                    data-level={guidance.level}
-                >
-                    <span
-                        className="guidance-dot"
-                        aria-hidden="true"
-                    />
-
-                    <div>
-                        <p className="guidance-label">
-                            {guidance.label}
-                        </p>
-                        <h2>
-                            {guidance.title}
-                        </h2>
-                        <p>
-                            {guidance.message}
-                        </p>
-                    </div>
                 </section>
 
                 <section className="domains">
@@ -593,28 +493,25 @@ export default function ResultPage({
 
                                     <p className="domain-count">
                                         <strong>
-                                            {
-                                                domain.positive
-                                            }
+                                            {domain.positive}
                                         </strong>{" "}
                                         / {domain.total}{" "}
-                                        {
-                                            positiveLabel
-                                        }
+                                        {positiveLabel}
                                     </p>
 
                                     <div className="track">
                                         <span
                                             style={{
-                                                width: `${domain.total >
+                                                width: `${
+                                                    domain.total >
                                                     0
-                                                    ? (
-                                                        domain.positive /
-                                                        domain.total
-                                                    ) *
-                                                    100
-                                                    : 0
-                                                    }%`,
+                                                        ? (
+                                                            domain.positive /
+                                                            domain.total
+                                                        ) *
+                                                        100
+                                                        : 0
+                                                }%`,
                                             }}
                                         />
                                     </div>
@@ -622,18 +519,73 @@ export default function ResultPage({
                             ),
                         )}
                     </div>
+                </section>
 
-                    <p className="form-note">
-                        {isPc
-                            ? tr(
-                                `Berdasarkan ${total} jawapan anda. Ini bukan pengesahan kelewatan perkembangan.`,
-                                `Based on your ${total} answers. This does not confirm developmental delay.`,
-                            )
-                            : tr(
-                                `Berdasarkan ${total} jawapan saringan.`,
-                                `Based on ${total} screening responses.`,
-                            )}
-                    </p>
+                <section
+                    className="guidance-card"
+                    data-level={
+                        guidance.level
+                    }
+                >
+                    <span
+                        className="guidance-dot"
+                        aria-hidden="true"
+                    />
+
+                    <div>
+                        <p className="guidance-label">
+                            {guidance.label}
+                        </p>
+
+                        <h2>
+                            {guidance.title}
+                        </h2>
+
+                        <p className="guidance-message">
+                            {guidance.message}
+                        </p>
+
+                        {whatsappHref ? (
+                            <a
+                                className="btn whatsapp-btn"
+                                href={whatsappHref}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                <svg
+                                    className="whatsapp-icon"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth={1.8}
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    aria-hidden="true"
+                                >
+                                    <path d="M20 11.5a8.5 8.5 0 0 1-8.5 8.5 8.4 8.4 0 0 1-4-1L3 20l1-4.5a8.5 8.5 0 1 1 16-4Z" />
+                                    <path d="M8.5 8.5c.5 3 3 5.5 6 6L16 13" />
+                                </svg>
+
+                                <span>
+                                    {tr(
+                                        "WhatsApp Kizzu",
+                                        "WhatsApp Kizzu",
+                                    )}
+                                </span>
+                            </a>
+                        ) : (
+                            <button
+                                type="button"
+                                className="btn whatsapp-btn"
+                                disabled
+                            >
+                                {tr(
+                                    "WhatsApp belum dikonfigurasi",
+                                    "WhatsApp not configured",
+                                )}
+                            </button>
+                        )}
+                    </div>
                 </section>
 
                 {result.items_to_watch.length >
@@ -656,10 +608,15 @@ export default function ResultPage({
                                     )}
 
                                 <small>
-                                    {tr(
-                                        "Lihat kemahiran yang boleh diperhatikan lagi.",
-                                        "Skills to keep observing.",
-                                    )}
+                                    {isPc
+                                        ? tr(
+                                            "Lihat kemahiran yang boleh diperhatikan lagi.",
+                                            "Skills to keep observing.",
+                                        )
+                                        : tr(
+                                            "Lihat kemahiran yang belum tercapai.",
+                                            "Skills not yet achieved.",
+                                        )}
                                 </small>
                             </span>
 
@@ -677,69 +634,82 @@ export default function ResultPage({
                             />
                         </summary>
 
-                        <ul className="watch-list">
-                            {result.items_to_watch.map(
-                                (item) => {
-                                    const domain =
-                                        result.domains.find(
-                                            (
-                                                domain,
-                                            ) =>
-                                                domain.code ===
-                                                item.domain_code,
+                        <div className="watch-groups">
+                            {watchedDomainCodes.map(
+                                (domainCode) => {
+                                    const items =
+                                        result.items_to_watch.filter(
+                                            (item) =>
+                                                item.domain_code ===
+                                                domainCode,
                                         )
 
+                                    const domain =
+                                        result.domains.find(
+                                            (item) =>
+                                                item.code ===
+                                                domainCode,
+                                        )
+
+                                    const firstItem =
+                                        items[0]
+
                                     return (
-                                        <li
+                                        <section
                                             key={
-                                                item.question_id
+                                                domainCode
                                             }
+                                            className="watch-group"
                                             data-domain={
-                                                item.domain_code
+                                                domainCode
                                             }
                                         >
-                                            {!isPc && (
-                                                <span className="watch-item-icon">
-                                                    <DomainIcon
-                                                        code={
-                                                            item.domain_code
-                                                        }
-                                                    />
-                                                </span>
-                                            )}
-
-                                            <div className="watch-item-copy">
-                                                <small>
+                                            <h3 className="watch-group-heading">
+                                                <span>
                                                     {domain
                                                         ? domainName(
                                                             domain,
                                                         )
-                                                        : language === "en"
-                                                            ? item.domain_name_en ||
-                                                            item.domain_name_ms
-                                                            : item.domain_name_ms}
-                                                </small>
+                                                        : firstItem
+                                                            .domain_name_ms}
+                                                </span>
 
-                                                <p>
-                                                    {language ===
-                                                        "en"
-                                                        ? item.question_en ||
-                                                        item.question_ms
-                                                        : item.question_ms}
-                                                </p>
-                                            </div>
-                                        </li>
+                                                <span className="watch-group-count">
+                                                    {items.length}
+                                                </span>
+                                            </h3>
+
+                                            <ul className="watch-group-list">
+                                                {items.map(
+                                                    (item) => (
+                                                        <li
+                                                            key={
+                                                                item.question_id
+                                                            }
+                                                        >
+                                                            <p>
+                                                                {language ===
+                                                                "en"
+                                                                    ? item.question_en ||
+                                                                    item.question_ms
+                                                                    : item.question_ms}
+                                                            </p>
+                                                        </li>
+                                                    ),
+                                                )}
+                                            </ul>
+                                        </section>
                                     )
                                 },
                             )}
-                        </ul>
+                        </div>
                     </details>
                 ) : (
                     <p className="positive-note">
                         {isPc
                             ? tr(
-                                "Semua kemahiran yang ditanya dalam checklist ini telah diperhatikan.",
-                                "All skills asked about in this checklist have been observed.",
+                                "Semua kemahiran yang ditanya dalam saringan ini telah diperhatikan.",
+                                "All skills asked about in this screening have been observed.",
                             )
                             : tr(
                                 "Semua item saringan bagi kumpulan umur ini telah tercapai.",
@@ -750,237 +720,97 @@ export default function ResultPage({
 
                 {data.recommendations.length >
                     0 && (
-                        <section className="activities">
-                            <div className="activities-heading">
-                                <h2>
-                                    {result.total_negative >
-                                        0
-                                        ? tr(
-                                            "Cuba bersama anak",
-                                            "Try together",
+                    <section className="activities">
+                        <div className="activities-heading">
+                            <h2>
+                                {tr(
+                                    "Cadangan aktiviti bersama anak",
+                                    "Suggested activities with your child",
+                                )}
+                            </h2>
+                        </div>
+
+                        <div className="activity-stack">
+                            {data.recommendations.map(
+                                (activity) => {
+                                    const activityDomain =
+                                        recommendationDomainCode(
+                                            activity.category,
                                         )
-                                        : tr(
-                                            "Aktiviti pengayaan",
-                                            "Enrichment activities",
-                                        )}
-                                </h2>
 
-                                <p>
-                                    {tr(
-                                        "Pilih satu aktiviti untuk bermula.",
-                                        "Choose one activity to start.",
-                                    )}
-                                </p>
-                            </div>
+                                    return (
+                                        <details
+                                            className="activity-card"
+                                            data-domain={
+                                                activityDomain
+                                            }
+                                            key={
+                                                activity.id
+                                            }
+                                        >
+                                            <summary>
+                                                <span className="activity-icon">
+                                                    <ActivityIcon
+                                                        category={
+                                                            activity.category
+                                                        }
+                                                    />
+                                                </span>
 
-                            <div className="activity-stack">
-                                {data.recommendations.map(
-                                    (
-                                        activity,
-                                    ) => {
-                                        const activityDomain =
-                                            recommendationDomainCode(
-                                                activity.category,
-                                            )
-
-                                        return (
-                                            <details
-                                                className="activity-card"
-                                                data-domain={
-                                                    activityDomain
-                                                }
-                                                key={
-                                                    activity.id
-                                                }
-                                            >
-                                                <summary>
-                                                    <span className="activity-icon">
-                                                        <ActivityIcon
-                                                            category={
-                                                                activity.category
-                                                            }
-                                                        />
-                                                    </span>
-
-                                                    <span className="activity-title">
-                                                        <strong>
-                                                            {activityTitle(
-                                                                activity,
-                                                            )}
-                                                        </strong>
-
-                                                        {activitySupports(
-                                                            activity,
-                                                        ) && (
-                                                                <small>
-                                                                    {activitySupports(
-                                                                        activity,
-                                                                    )}
-                                                                </small>
-                                                            )}
-                                                    </span>
-
-                                                    <span
-                                                        className="activity-toggle"
-                                                        aria-hidden="true"
-                                                    >
-                                                        <ChevronDown />
-                                                    </span>
-                                                </summary>
-
-                                                <div className="activity-body">
-                                                    <p className="instruction-label">
-                                                        {tr(
-                                                            "Cara cuba",
-                                                            "How to try",
-                                                        )}
-                                                    </p>
-
-                                                    <p>
-                                                        {activityInstructions(
+                                                <span className="activity-title">
+                                                    <strong>
+                                                        {activityTitle(
                                                             activity,
                                                         )}
-                                                    </p>
+                                                    </strong>
 
-                                                    {activitySafety(
+                                                    {activitySupports(
                                                         activity,
                                                     ) && (
-                                                            <p className="activity-safety">
-                                                                {tr(
-                                                                    "Nota keselamatan:",
-                                                                    "Safety note:",
-                                                                )}{" "}
-                                                                {activitySafety(
-                                                                    activity,
-                                                                )}
-                                                            </p>
+                                                        <small>
+                                                            {activitySupports(
+                                                                activity,
+                                                            )}
+                                                        </small>
+                                                    )}
+                                                </span>
+
+                                                <span
+                                                    className="activity-toggle"
+                                                    aria-hidden="true"
+                                                >
+                                                    <ChevronDown />
+                                                </span>
+                                            </summary>
+
+                                            <div className="activity-body">
+                                                <p>
+                                                    {activityInstructions(
+                                                        activity,
+                                                    )}
+                                                </p>
+
+                                                {activitySafety(
+                                                    activity,
+                                                ) && (
+                                                    <p className="activity-safety">
+                                                        {tr(
+                                                            "Nota keselamatan:",
+                                                            "Safety note:",
+                                                        )}{" "}
+                                                        {activitySafety(
+                                                            activity,
                                                         )}
-                                                </div>
-                                            </details>
-                                        )
-                                    },
-                                )}
-                            </div>
-                        </section>
-                    )}
-
-                <section className="next-step support-card">
-                    <span className="support-icon area-icon">
-                        <DomainIcon
-                            code="LANGUAGE_COMMUNICATION"
-                        />
-                    </span>
-
-                    <div className="support-copy">
-                        <h2>
-                            {tr(
-                                "Bincang langkah seterusnya",
-                                "Let's talk about next steps",
-                            )}
-                        </h2>
-
-                        <p>
-                            {isPc
-                                ? tr(
-                                    "Kongsikan ringkasan ini dengan pasukan Kizzu",
-                                    "Share this summary with the Kizzu team.",
-                                )
-                                : guidance.level ===
-                                    "refer"
-                                    ? tr(
-                                        "Kongsikan ringkasan ini dengan pasukan Kizzu untuk memahami pilihan penilaian dan sokongan yang sesuai.",
-                                        "Share this summary with the Kizzu team to understand suitable assessment and support options.",
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </details>
                                     )
-                                    : tr(
-                                        "Kongsikan ringkasan ini jika anda mahu panduan aktiviti atau perkembangan anak.",
-                                        "Share this summary if you would like guidance on activities or your child's development.",
-                                    )}
-                        </p>
-                    </div>
-
-                    {whatsappHref ? (
-                        <a
-                            className="btn"
-                            href={whatsappHref}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                        >
-                            {tr(
-                                "Bincang dengan Kizzu",
-                                "Talk to Kizzu",
+                                },
                             )}
-                            <span aria-hidden="true">
-                                ↗
-                            </span>
-                        </a>
-                    ) : (
-                        <button
-                            type="button"
-                            className="btn"
-                            disabled
-                        >
-                            {tr(
-                                "WhatsApp belum dikonfigurasi",
-                                "WhatsApp not configured",
-                            )}
-                        </button>
-                    )}
-                </section>
-
-                <p className="disclaimer">
-                    {isPc
-                        ? tr(
-                            "Checklist ini berdasarkan pemerhatian ibu bapa dan bukan diagnosis. Jika anda bimbang tentang perkembangan anak anda, dapatkan nasihat profesional walaupun semua jawapan \"Boleh\".",
-                            "This screening is based on parent observations and is not a diagnosis. Seek professional assessment if you are concerned, even if every answer is \"Able\".",
-                        )
-                        : tr(
-                            "Keputusan SPK ialah panduan awal berdasarkan jawapan yang diberikan dan bukan diagnosis.",
-                            "The SPK result is an initial guide based on the answers provided and is not a diagnosis.",
-                        )}
-                </p>
-
-                <details className="reference-details">
-                    <summary>
-                        <span>
-                            {tr(
-                                "Rujukan & privasi",
-                                "Reference & privacy",
-                            )}
-                        </span>
-
-                        <ChevronDown
-                            className="details-chevron"
-                            aria-hidden="true"
-                        />
-                    </summary>
-
-                    <p className="reference">
-                        {data.reference_code}
-                    </p>
-
-                    <p className="form-note">
-                        {tr(
-                            "Pautan ini membuka ringkasan anak anda. Kongsi hanya dengan orang yang dipercayai.",
-                            "This link opens your child's summary. Share it only with people you trust.",
-                        )}
-                    </p>
-                </details>
-
-                <button
-                    className="inline-link new-checklist"
-                    type="button"
-                    onClick={onStartNew}
-                >
-                    {isPc
-                        ? tr(
-                            "Saringan baharu",
-                            "New screening",
-                        )
-                        : tr(
-                            "Saringan baharu",
-                            "New screening",
-                        )}
-                </button>
+                        </div>
+                    </section>
+                )}
             </div>
         </ScreeningShell>
     )

@@ -182,7 +182,7 @@ if (
     !$parentName ||
     !$phone ||
     !$email ||
-    !$location
+    ($assessmentCode !== 'PC' && !$location)
 ) {
     http_response_code(422);
 
@@ -232,6 +232,7 @@ if (
 }
 
 if (
+    ($assessmentCode !== 'PC' || $location !== '') &&
     !in_array(
         $location,
         $allowedLocations,
@@ -249,7 +250,7 @@ if (
     exit;
 }
 
-if ($consent !== true) {
+if ($assessmentCode !== 'PC' && $consent !== true) {
     http_response_code(422);
 
     echo json_encode([
@@ -596,7 +597,7 @@ try {
             ?,
             ?,
 
-            NOW(),
+            CASE WHEN ? = 1 THEN NOW() ELSE NULL END,
 
             'completed',
 
@@ -636,6 +637,8 @@ try {
         $phone,
         $email,
         $location,
+
+        $consent === true ? 1 : 0,
 
         $evaluation['status'],
         $evaluation['engine_version'],

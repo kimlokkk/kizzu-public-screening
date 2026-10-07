@@ -11,6 +11,13 @@ export default function ScreeningFlow({
 }: ScreeningFlowProps) {
     const { tr } = useLanguage()
 
+    if (
+        assessmentCode === "PC" ||
+        assessmentCode === "SPK"
+    ) {
+        return null
+    }
+
     const labels = [
         tr("Anak", "Child"),
         assessmentCode === "SPK"

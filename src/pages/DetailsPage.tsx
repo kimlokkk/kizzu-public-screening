@@ -166,8 +166,8 @@ export default function DetailsPage({
                                 )}
                                 <br />
                                 {tr(
-                                    "Percuma · Umur 1 hingga 6 tahun",
-                                    "Free · Ages 1 to 6 years",
+                                    "Khusus untuk anak berumur 1 hingga 6 tahun",
+                                    "For children aged 1 to 6 years",
                                 )}
                             </>
                         ) : (
@@ -178,8 +178,8 @@ export default function DetailsPage({
                                 )}
                                 <br />
                                 {tr(
-                                    "Percuma · Umur 1 hingga bawah 6 tahun",
-                                    "Free · Ages 1 to under 6",
+                                    "Khusus untuk anak berumur 1 hingga bawah 6 tahun",
+                                    "For children aged 1 to under 6",
                                 )}
                             </>
                         )}
@@ -285,8 +285,8 @@ export default function DetailsPage({
                                         "Start screening",
                                     )
                                     : tr(
-                                        "Mula checklist",
-                                        "Start checklist",
+                                        "Mula Saringan",
+                                        "Start Screening",
                                     )}
                         </span>
 
@@ -295,18 +295,6 @@ export default function DetailsPage({
                         </span>
                     </button>
 
-                    <p className="form-note">
-                        {isSpk
-                            ? tr(
-                                "Maklumat ibu bapa diperlukan untuk menyimpan ringkasan saringan.",
-                                "Parent details are required to save the screening summary.",
-                            )
-                            : tr(
-                                "Maklumat ibu bapa diperlukan untuk menyimpan ringkasan checklist.",
-                                "Parent details are required to save the checklist summary.",
-                            )}
-                    </p>
-
                     <p className="disclaimer">
                         {isSpk
                             ? tr(
@@ -314,8 +302,8 @@ export default function DetailsPage({
                                 "An initial observation-based screening, not a diagnosis.",
                             )
                             : tr(
-                                "Checklist ini berasaskan pemerhatian dan bukan diagnosis.",
-                                "This checklist is observation-based and is not a diagnosis.",
+                                "Saringan ini berasaskan pemerhatian dan bukan diagnosis.",
+                                "This screening is observation-based and is not a diagnosis.",
                             )}{" "}
 
                         <a

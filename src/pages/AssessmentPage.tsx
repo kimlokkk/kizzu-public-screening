@@ -4,7 +4,6 @@ import {
 } from "react"
 
 import DomainIcon from "@/components/screening/DomainIcon"
-import ScreeningFlow from "@/components/screening/ScreeningFlow"
 import ScreeningShell from "@/components/screening/ScreeningShell"
 import { useLanguage } from "@/context/LanguageContext"
 import { MALAYSIA_LOCATIONS } from "@/data/locations"
@@ -121,6 +120,25 @@ export default function AssessmentPage({
                 0,
             )
 
+    const exactAgeLabel = (() => {
+        const years = Math.floor(
+            assessmentData.age.months / 12,
+        )
+
+        const months =
+            assessmentData.age.months % 12
+
+        if (language === "ms") {
+            return `${years} tahun ${months} bulan`
+        }
+
+        return `${years} ${
+            years === 1 ? "year" : "years"
+        } ${months} ${
+            months === 1 ? "month" : "months"
+        }`
+    })()
+
     useEffect(() => {
         window.scrollTo({
             top: 0,
@@ -236,13 +254,6 @@ export default function AssessmentPage({
         )
     }
 
-    function editDomain(index: number) {
-        setDomainIndex(index)
-        setReviewMode(false)
-        setError(null)
-        setUnansweredIds([])
-    }
-
     function updateParent(
         field:
             | "parentName"
@@ -279,6 +290,10 @@ export default function AssessmentPage({
                 normalizeEmail(
                     parentForm.email,
                 ),
+            location:
+                isSpk
+                    ? parentForm.location
+                    : "",
         }
 
         if (!normalized.parentName.trim()) {
@@ -325,7 +340,10 @@ export default function AssessmentPage({
                 )
         }
 
-        if (!normalized.location) {
+        if (
+            isSpk &&
+            !normalized.location
+        ) {
             errors.location =
                 tr(
                     "Sila pilih lokasi.",
@@ -366,11 +384,14 @@ export default function AssessmentPage({
             return
         }
 
-        if (!consent) {
+        if (
+            isSpk &&
+            !consent
+        ) {
             setError(
                 tr(
-                    "Sila beri persetujuan sebelum menyimpan ringkasan.",
-                    "Please provide consent before saving the summary.",
+                    "Sila beri persetujuan sebelum menyimpan keputusan saringan.",
+                    "Please provide consent before saving the screening result.",
                 ),
             )
             return
@@ -385,131 +406,9 @@ export default function AssessmentPage({
     }
 
     if (reviewMode) {
-        const yesCount =
-            Object.values(answers)
-                .filter(Boolean)
-                .length
-
         return (
             <ScreeningShell>
-                <div className="flow-wrap">
-                    <ScreeningFlow
-                        current={3}
-                        assessmentCode={
-                            assessmentData
-                                .assessment
-                                .code
-                        }
-                    />
-
-                    <div className="page-heading">
-                        <h1>
-                            {tr(
-                                "Semak & simpan",
-                                "Review & save",
-                            )}
-                        </h1>
-
-                        <p>
-                            {details.childName}
-                            {" · "}
-                            {assessmentData.age.group}
-                        </p>
-                    </div>
-
-                    <details className="review-details">
-                        <summary>
-                            <span>
-                                {yesCount}{" "}
-                                {positiveLabel}
-                                {" · "}
-                                {
-                                    assessmentData
-                                        .total_questions -
-                                    yesCount
-                                }{" "}
-                                {negativeLabel}
-                            </span>
-
-                            <span className="muted">
-                                {tr(
-                                    "Semak jawapan",
-                                    "Review answers",
-                                )}
-                            </span>
-                        </summary>
-
-                        <div>
-                            {domains.map(
-                                (
-                                    domain,
-                                    index,
-                                ) => {
-                                    const positive =
-                                        domain.questions.filter(
-                                            (
-                                                question,
-                                            ) =>
-                                                answers[
-                                                question
-                                                    .id
-                                                ] ===
-                                                true,
-                                        ).length
-
-                                    return (
-                                        <div
-                                            key={
-                                                domain.id
-                                            }
-                                            className="review-domain"
-                                        >
-                                            <span>
-                                                {
-                                                    domainName(
-                                                        domain,
-                                                    )
-                                                }
-                                                <small>
-                                                    {
-                                                        positive
-                                                    }{" "}
-                                                    /{" "}
-                                                    {
-                                                        domain
-                                                            .questions
-                                                            .length
-                                                    }{" "}
-                                                    {
-                                                        positiveLabel
-                                                    }
-                                                </small>
-                                            </span>
-
-                                            <button
-                                                type="button"
-                                                className="inline-link"
-                                                disabled={
-                                                    submitting
-                                                }
-                                                onClick={() =>
-                                                    editDomain(
-                                                        index,
-                                                    )
-                                                }
-                                            >
-                                                {tr(
-                                                    "Ubah",
-                                                    "Edit",
-                                                )}
-                                            </button>
-                                        </div>
-                                    )
-                                },
-                            )}
-                        </div>
-                    </details>
-
+                <div className="flow-wrap parent-details-step">
                     <form
                         className="form-panel"
                         onSubmit={submitReview}
@@ -535,13 +434,10 @@ export default function AssessmentPage({
                                     value={
                                         parentForm.parentName
                                     }
-                                    onChange={(
-                                        event,
-                                    ) =>
+                                    onChange={(event) =>
                                         updateParent(
                                             "parentName",
-                                            event.target
-                                                .value,
+                                            event.target.value,
                                         )
                                     }
                                     onBlur={() =>
@@ -558,9 +454,7 @@ export default function AssessmentPage({
 
                                 {parentErrors.parentName && (
                                     <span className="field-error">
-                                        {
-                                            parentErrors.parentName
-                                        }
+                                        {parentErrors.parentName}
                                     </span>
                                 )}
                             </div>
@@ -577,16 +471,11 @@ export default function AssessmentPage({
                                     id="phone"
                                     inputMode="tel"
                                     autoComplete="tel"
-                                    value={
-                                        parentForm.phone
-                                    }
-                                    onChange={(
-                                        event,
-                                    ) =>
+                                    value={parentForm.phone}
+                                    onChange={(event) =>
                                         updateParent(
                                             "phone",
-                                            event.target
-                                                .value,
+                                            event.target.value,
                                         )
                                     }
                                     onBlur={() =>
@@ -602,9 +491,7 @@ export default function AssessmentPage({
 
                                 {parentErrors.phone && (
                                     <span className="field-error">
-                                        {
-                                            parentErrors.phone
-                                        }
+                                        {parentErrors.phone}
                                     </span>
                                 )}
                             </div>
@@ -618,16 +505,11 @@ export default function AssessmentPage({
                                     id="email"
                                     type="email"
                                     autoComplete="email"
-                                    value={
-                                        parentForm.email
-                                    }
-                                    onChange={(
-                                        event,
-                                    ) =>
+                                    value={parentForm.email}
+                                    onChange={(event) =>
                                         updateParent(
                                             "email",
-                                            event.target
-                                                .value,
+                                            event.target.value,
                                         )
                                     }
                                     onBlur={() =>
@@ -643,105 +525,86 @@ export default function AssessmentPage({
 
                                 {parentErrors.email && (
                                     <span className="field-error">
-                                        {
-                                            parentErrors.email
-                                        }
+                                        {parentErrors.email}
                                     </span>
                                 )}
                             </div>
 
-                            <div className="field full">
-                                <label htmlFor="location">
-                                    {tr(
-                                        "Lokasi",
-                                        "Location",
-                                    )}
-                                </label>
-
-                                <select
-                                    id="location"
-                                    value={
-                                        parentForm.location
-                                    }
-                                    onChange={(
-                                        event,
-                                    ) =>
-                                        updateParent(
-                                            "location",
-                                            event.target
-                                                .value,
-                                        )
-                                    }
-                                    required
-                                >
-                                    <option value="">
+                            {isSpk && (
+                                <div className="field full">
+                                    <label htmlFor="location">
                                         {tr(
-                                            "Pilih lokasi",
-                                            "Select location",
+                                            "Lokasi",
+                                            "Location",
                                         )}
-                                    </option>
+                                    </label>
 
-                                    {MALAYSIA_LOCATIONS.map(
-                                        (
-                                            location,
-                                        ) => (
-                                            <option
-                                                key={
-                                                    location
-                                                }
-                                                value={
-                                                    location
-                                                }
-                                            >
-                                                {
-                                                    location
-                                                }
-                                            </option>
-                                        ),
-                                    )}
-                                </select>
-
-                                {parentErrors.location && (
-                                    <span className="field-error">
-                                        {
-                                            parentErrors.location
+                                    <select
+                                        id="location"
+                                        value={parentForm.location}
+                                        onChange={(event) =>
+                                            updateParent(
+                                                "location",
+                                                event.target.value,
+                                            )
                                         }
-                                    </span>
-                                )}
-                            </div>
+                                        required
+                                    >
+                                        <option value="">
+                                            {tr(
+                                                "Pilih lokasi",
+                                                "Select location",
+                                            )}
+                                        </option>
+
+                                        {MALAYSIA_LOCATIONS.map(
+                                            (location) => (
+                                                <option
+                                                    key={location}
+                                                    value={location}
+                                                >
+                                                    {location}
+                                                </option>
+                                            ),
+                                        )}
+                                    </select>
+
+                                    {parentErrors.location && (
+                                        <span className="field-error">
+                                            {parentErrors.location}
+                                        </span>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
-                        <label className="check">
-                            <input
-                                type="checkbox"
-                                checked={consent}
-                                onChange={(
-                                    event,
-                                ) =>
-                                    setConsent(
-                                        event.target
-                                            .checked,
-                                    )
-                                }
-                            />
+                        {isSpk && (
+                            <label className="check">
+                                <input
+                                    type="checkbox"
+                                    checked={consent}
+                                    onChange={(event) =>
+                                        setConsent(
+                                            event.target.checked,
+                                        )
+                                    }
+                                />
 
-                            <span>
-                                {tr(
-                                    "Saya bersetuju maklumat digunakan untuk rekod saringan dan sokongan Kizzu mengikut Dasar Privasi.",
-                                    "I agree to the use of this information for the screening record and Kizzu support under the Privacy Policy.",
-                                )}
-                            </span>
-                        </label>
+                                <span>
+                                    {tr(
+                                        "Saya bersetuju maklumat digunakan untuk rekod saringan dan sokongan Kizzu mengikut Dasar Privasi.",
+                                        "I agree to the use of this information for the screening record and Kizzu support under the Privacy Policy.",
+                                    )}
+                                </span>
+                            </label>
+                        )}
 
                         {(error || submitError) && (
                             <p
                                 className="error"
                                 role="alert"
                             >
-                                {
-                                    submitError ||
-                                    error
-                                }
+                                {submitError || error}
                             </p>
                         )}
 
@@ -751,12 +614,9 @@ export default function AssessmentPage({
                                 className="btn secondary"
                                 disabled={submitting}
                                 onClick={() => {
-                                    setReviewMode(
-                                        false,
-                                    )
+                                    setReviewMode(false)
                                     setDomainIndex(
-                                        domains.length -
-                                        1,
+                                        domains.length - 1,
                                     )
                                 }}
                             >
@@ -777,8 +637,8 @@ export default function AssessmentPage({
                                         "Saving...",
                                     )
                                     : tr(
-                                        "Lihat ringkasan",
-                                        "View summary",
+                                        "Papar Keputusan",
+                                        "View Results",
                                     )}
                             </button>
                         </div>
@@ -791,26 +651,32 @@ export default function AssessmentPage({
     return (
         <ScreeningShell>
             <div className="flow-wrap questions-wrap">
-                <ScreeningFlow
-                    current={2}
-                    assessmentCode={
-                        assessmentData
-                            .assessment
-                            .code
-                    }
-                />
-
                 <div className="page-heading">
-                    <p className="meta">
-                        {details.childName}
-                        {" · "}
-                        {tr(
-                            "Bahagian",
-                            "Section",
-                        )}{" "}
-                        {domainIndex + 1}/
-                        {domains.length}
-                    </p>
+                    <dl className="screening-child-summary">
+                        <div>
+                            <dt>
+                                {tr(
+                                    "Nama Anak",
+                                    "Child's Name",
+                                )}
+                            </dt>
+                            <dd>
+                                {details.childName}
+                            </dd>
+                        </div>
+
+                        <div>
+                            <dt>
+                                {tr(
+                                    "Umur Anak",
+                                    "Child's Age",
+                                )}
+                            </dt>
+                            <dd>
+                                {exactAgeLabel}
+                            </dd>
+                        </div>
+                    </dl>
 
                     <div className="section-heading">
                         <span className="area-icon">
@@ -829,14 +695,21 @@ export default function AssessmentPage({
                     </div>
 
                     <p>
+                        {tr(
+                            "Pilih “",
+                            "Choose “",
+                        )}
+                        <strong className="screening-positive-emphasis">
+                            {positiveLabel}
+                        </strong>
                         {isSpk
                             ? tr(
-                                "Pilih “Tercapai” jika kemahiran ini telah diperhatikan.",
-                                "Choose “Achieved” if you have observed this skill.",
+                                "” jika kemahiran ini telah diperhatikan.",
+                                "” if you have observed this skill.",
                             )
                             : tr(
-                                "Pilih “Boleh” jika kemahiran ini pernah diperhatikan.",
-                                "Choose “Able” if you have observed this skill.",
+                                "” jika kemahiran ini pernah diperhatikan.",
+                                "” if you have observed this skill.",
                             )}
                     </p>
                 </div>
@@ -862,10 +735,7 @@ export default function AssessmentPage({
 
                     <p>
                         {totalAnswered} /{" "}
-                        {
-                            assessmentData
-                                .total_questions
-                        }{" "}
+                        {assessmentData.total_questions}{" "}
                         {tr(
                             "jawapan",
                             "answers",
@@ -881,7 +751,7 @@ export default function AssessmentPage({
                         ) => {
                             const answer =
                                 answers[
-                                question.id
+                                    question.id
                                 ]
 
                             const unanswered =
@@ -903,10 +773,11 @@ export default function AssessmentPage({
                                     key={
                                         question.id
                                     }
-                                    className={`question ${unanswered
-                                        ? "unanswered"
-                                        : ""
-                                        }`}
+                                    className={`question ${
+                                        unanswered
+                                            ? "unanswered"
+                                            : ""
+                                    }`}
                                 >
                                     <span className="num">
                                         {String(
@@ -922,9 +793,7 @@ export default function AssessmentPage({
                                     <div>
                                         {subdomain && (
                                             <small className="question-subdomain">
-                                                {
-                                                    subdomain
-                                                }
+                                                {subdomain}
                                             </small>
                                         )}
 
@@ -938,8 +807,7 @@ export default function AssessmentPage({
                                             <button
                                                 type="button"
                                                 aria-pressed={
-                                                    answer ===
-                                                    true
+                                                    answer === true
                                                 }
                                                 onClick={() =>
                                                     answerQuestion(
@@ -948,17 +816,14 @@ export default function AssessmentPage({
                                                     )
                                                 }
                                             >
-                                                {
-                                                    positiveLabel
-                                                }
+                                                {positiveLabel}
                                             </button>
 
                                             <button
                                                 type="button"
                                                 className="no"
                                                 aria-pressed={
-                                                    answer ===
-                                                    false
+                                                    answer === false
                                                 }
                                                 onClick={() =>
                                                     answerQuestion(
@@ -967,9 +832,7 @@ export default function AssessmentPage({
                                                     )
                                                 }
                                             >
-                                                {
-                                                    negativeLabel
-                                                }
+                                                {negativeLabel}
                                             </button>
                                         </div>
                                     </div>
@@ -992,9 +855,7 @@ export default function AssessmentPage({
                     <button
                         type="button"
                         className="btn secondary"
-                        onClick={
-                            previousDomain
-                        }
+                        onClick={previousDomain}
                     >
                         {tr(
                             "Kembali",
@@ -1010,8 +871,8 @@ export default function AssessmentPage({
                         {domainIndex ===
                             domains.length - 1
                             ? tr(
-                                "Semak jawapan",
-                                "Review answers",
+                                "Seterusnya",
+                                "Continue",
                             )
                             : tr(
                                 "Seterusnya",

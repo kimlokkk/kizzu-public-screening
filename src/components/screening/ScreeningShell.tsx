@@ -16,6 +16,11 @@ export default function ScreeningShell({
         tr,
     } = useLanguage()
 
+    const hideFooter =
+        /^\/(pc|spk)(?:\/|$)/.test(
+            window.location.pathname,
+        )
+
     return (
         <div className="kz-page">
             <a className="skip" href="#main-content">
@@ -65,23 +70,25 @@ export default function ScreeningShell({
                 {children}
             </main>
 
-            <footer className="site-footer">
-                <span>
-                    © {new Date().getFullYear()} Kizzu Kids
-                </span>
+            {!hideFooter && (
+                <footer className="site-footer">
+                    <span>
+                        © {new Date().getFullYear()} Kizzu Kids
+                    </span>
 
-                <a
-                    href="/privacy-policy/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                >
-                    {tr(
-                        "Dasar Privasi",
-                        "Privacy Policy",
-                    )}{" "}
-                    <span aria-hidden="true">↗</span>
-                </a>
-            </footer>
+                    <a
+                        href="/privacy-policy/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        {tr(
+                            "Dasar Privasi",
+                            "Privacy Policy",
+                        )}{" "}
+                        <span aria-hidden="true">↗</span>
+                    </a>
+                </footer>
+            )}
         </div>
     )
 }
